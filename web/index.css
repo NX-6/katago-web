@@ -1,0 +1,48 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+}
+
+div#root {
+  padding: 5px;
+  height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+}
+
+div#root > * + * {
+  margin-top: 5px;
+}
+
+div#controls {
+  display: flex;
+  align-items: center;
+}
+
+div#controls > * + * {
+  margin-left: 5px;
+}
+
+button {
+  display: block;
+}
+
+form {
+  display: flex;
+  margin-top: 0px;
+}
+
+input, textarea {
+  border: 1px solid hsl(0deg 0% 90%);
+  padding: 10px;
+  width: 100%;
+}
+
+textarea {
+  height: 100%;
+  resize: none;
+}

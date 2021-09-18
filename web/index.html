@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>KataGo</title>
+    <link rel="stylesheet" href="index.css">
+    <script type="text/javascript" src="sw.js"></script>
+  </head>
+  <body>
+    <div id="root">
+      <textarea id="output" cols="30" rows="10" placeholder="GTP output" disabled></textarea>
+      <div id="controls">
+        <button id="showboard">showboard</button>
+        <span id="genmove">genmove:</span>
+        <button id="genmoveBlack">black</button>
+        <button id="genmoveWhite">white</button>
+      </div>
+      <form id="input">
+        <input type="text" id="command" name="command" placeholder="starting KataGo..." disabled>
+      </form>
+    </div>
+
+    <script type="text/javascript" src="shared.js"></script>
+
+    <script type="text/javascript" src="katago.js"></script>
+    <script type="text/javascript" src="run_in_ui.js"></script>
+
+    <!-- <script type="text/javascript" src="run_in_worker.js"></script> -->
+  </body>
+</html>

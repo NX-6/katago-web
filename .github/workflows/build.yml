@@ -1,0 +1,54 @@
+name: build-artifacts
+on: [push]
+
+jobs:
+  build-web-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: build/
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./build-artifact.sh web-model ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v2
+        with:
+          name: web_model
+          path: build/out/
+          retention-days: 1
+
+  build-katago-js:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: build/
+    steps:
+      - uses: actions/checkout@v2
+      - run: ./build-artifact.sh katago-js ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v2
+        with:
+          name: em_build
+          path: build/out/
+          retention-days: 1
+
+  package:
+    needs: [build-web-model, build-katago-js]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: web_model
+          path: build/web_model
+      - uses: actions/download-artifact@v2
+        with:
+          name: em_build
+          path: build/em_build
+      - run: build/package.sh
+
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/public/
