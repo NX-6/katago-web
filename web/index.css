@@ -7,7 +7,7 @@ html, body {
 }
 
 div#root {
-  padding: 5px;
+  padding: 10px;
   height: 100vh;
 
   display: flex;
@@ -27,8 +27,16 @@ div#controls > * + * {
   margin-left: 5px;
 }
 
-button {
-  display: block;
+div#controls > div {
+  display: flex;
+  align-items: center;
+
+  height: 100%;
+  padding: 5px 8px;
+}
+
+div#controls > div >  * + * {
+  margin-left: 5px;
 }
 
 form {
@@ -36,9 +44,24 @@ form {
   margin-top: 0px;
 }
 
-input, textarea {
+input[type=checkbox] { margin-right: 0; }
+
+input, textarea, div#controls > div {
   border: 1px solid hsl(0deg 0% 90%);
+  background-color: hsl(240deg 0% 98%);
+  border-radius: 3px;
+}
+
+input, textarea {
   padding: 10px;
+  font-family: monospace;
+}
+
+input#play {
+  width: 50px;
+}
+
+input#command, textarea {
   width: 100%;
 }
 

@@ -1,13 +1,20 @@
-Module["preRun"] = function() {
-  FS.createPreloadedFile(FS.cwd(), Module["cfgFile"], Module["cfgFile"], true, false);
-  FS.init(Module["stdinRead"], Module["stdoutWrite"], Module["stderrWrite"]);
-}
+if (!("preRun" in Module))
+  Module["preRun"] = [];
+
+Module["preRun"].push(function() {
+  if (Module["stdinRead"])
+    FS.init(Module["stdinRead"], Module["stdoutWrite"], Module["stderrWrite"]);
+
+  if (Module["cfgFile"])
+    FS.createPreloadedFile(FS.cwd(), Module["cfgFile"], Module["cfgFile"], true, false);
+});
 
 // The reason why ES5 is https://github.com/emscripten-core/emscripten/issues/9190
 
-function loadJSON(url) {
+function loadJSON(path) {
     return new Promise(function(resolve, reject) {
         const xhr = new XMLHttpRequest();
+        const url = new URL(path, scriptDirectory);
         xhr.responseType = "json";
         xhr.open("GET", url);
         xhr.addEventListener("load", _ => {
@@ -110,17 +117,17 @@ GraphModelWrapper.prototype.predict = function(
                     const data = result.dataSync();
                     switch (result.size) {
                         case 3: //value
-                        Module.HEAPF32.set(data, values / Module.HEAPF32.BYTES_PER_ELEMENT);
-                        break;
+                          Module.HEAPF32.set(data, values / Module.HEAPF32.BYTES_PER_ELEMENT);
+                          break;
                         case miscvaluesSize: // miscvalues
-                        Module.HEAPF32.set(data, miscvalues / Module.HEAPF32.BYTES_PER_ELEMENT);
-                        break;
+                          Module.HEAPF32.set(data, miscvalues / Module.HEAPF32.BYTES_PER_ELEMENT);
+                          break;
                         case boardWxH: // ownership
-                        Module.HEAPF32.set(data, ownerships / Module.HEAPF32.BYTES_PER_ELEMENT);
-                        break;
+                          Module.HEAPF32.set(data, ownerships / Module.HEAPF32.BYTES_PER_ELEMENT);
+                          break;
                         case (boardWxH + 1) * 2: // policy
-                        Module.HEAPF32.set(data, policies / Module.HEAPF32.BYTES_PER_ELEMENT);
-                        break;
+                          Module.HEAPF32.set(data, policies / Module.HEAPF32.BYTES_PER_ELEMENT);
+                          break;
                     }
                 }
                 wakeUp(1);

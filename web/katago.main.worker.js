@@ -49,20 +49,12 @@ function writeChar(char) {
     if (bufferOut.length < 1000)
       self.postMessage({type: "stdout", text: bufferOut});
 
-    bufferOut = "";
-    crFlag = false;
+    crFlag = false; bufferOut = "";
     return;
   }
 
-  if (char === 0x0d) {
-    crFlag = true;
-    return;
-  }
-
-  if (crFlag) {
-    crFlag = false;
-    bufferOut = "";
-  }
+  if (char === 0x0d) { crFlag = true; return; }
+  if (crFlag)        { crFlag = false; bufferOut = ""; }
 
   bufferOut += String.fromCharCode(char);
 }

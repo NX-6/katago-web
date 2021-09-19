@@ -2,20 +2,18 @@ function testLoadsgf() {
   const sgfFile = "tmp.sgf";
   FS.createPreloadedFile( FS.cwd(), sgfFile, sgfFile, true, false );
   setTimeout(function() {
-      const input = document.getElementById("input");
-      const command = input.command;
-      command.value = "loadsgf tmp.sgf";
-      input.dispatchEvent(new CustomEvent("submit"));
+      cmdInput.value = "loadsgf tmp.sgf";
+      inputForm.dispatchEvent(new CustomEvent("submit"));
   }, 1000);
 }
 
 class Input {
   constructor() {
     this.buffer = "";
-    document.getElementById("input").addEventListener("submit", ev => {
+    inputForm.addEventListener("submit", ev => {
         ev.preventDefault();
-        this.dispatchCmd(ev.currentTarget.command.value);
-        ev.currentTarget.command.value = "";
+        this.dispatchCmd(cmdInput.value);
+        cmdInput.value = "";
     }, false);
   }
 
@@ -65,14 +63,9 @@ class Output {
       this.crFlag = false;
       return;
     }
-    if (char === 0x0d) {
-      this.crFlag = true;
-      return;
-    }
-    if (this.crFlag) {
-      this.crFlag = false;
-      this.buffer = "";
-    }
+    if (char === 0x0d) { this.crFlag = true; return; }
+    if (this.crFlag)   { this.crFlag = false; this.buffer = ""; }
+
     this.buffer += String.fromCharCode(char);
   }
 }
@@ -99,16 +92,14 @@ if (!crossOriginIsolated) {
       "-config", cfgFile
     ],
 
-    // used for FS.init
+    // FS.init
     stdinRead: i.callback.bind(i),
     stdoutWrite: o.callback.bind(o),
     stderrWrite: o.callback.bind(o),
 
-    // used by tfjs_api.js
+    // tfjs_api.js
     awaitStdin: i.awaitStdin.bind(i),
     notifyStatus: onKatagoStatus
-  }).then(function(kg) {
-    console.log("KataGo ready", kg);
-  });
+  }).then(kg => console.log("KataGo ready", kg));
 
 }

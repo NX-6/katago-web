@@ -11,11 +11,26 @@
     <div id="root">
       <textarea id="output" cols="30" rows="10" placeholder="GTP output" disabled></textarea>
       <div id="controls">
-        <button id="showboard">showboard</button>
-        <span id="genmove">genmove:</span>
-        <button id="genmoveBlack">black</button>
-        <button id="genmoveWhite">white</button>
+        <div>
+          <span>play</span>
+          <input type="text" id="play">
+          <button id="playBlack">black</button>
+          <button id="playWhite">white</button>
+        </div>
+        <div>
+          <span>genmove</span>
+          <button id="genmoveBlack">black</button>
+          <button id="genmoveWhite">white</button>
+          <input type="checkbox" id="analyze" name="analyze" checked>
+          <label for="analyze">analyze</label>
+        </div>
+        <div>
+          <button id="showboard">showboard</button>
+          <input type="checkbox" id="showboardAuto" name="showboardAuto" checked>
+          <label for="showboardAuto">auto</label>
+        </div>
       </div>
+
       <form id="input">
         <input type="text" id="command" name="command" placeholder="starting KataGo..." disabled>
       </form>
