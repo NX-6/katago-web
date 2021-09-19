@@ -1,9 +1,49 @@
 if (!("preRun" in Module))
   Module["preRun"] = [];
 
+var bufferIn = "";
+var bufferOut = "";
+var resolveP = null;
+var rejectP = null;
+var crFlag = false;
+
+Module["postMessage"] = function(cmdStr) {
+  bufferIn += cmdStr;
+  if (resolveP)
+    resolveP();
+  else
+    console.warn('not awaiting stdin');
+};
+
+Module["awaitStdin"] = function() {
+  return new Promise((res, rej) => { resolveP = res; rejectP = rej; });
+}
+
+function readChar() {
+  if (!bufferIn) return null;
+
+  const c = bufferIn[0];
+  bufferIn = bufferIn.substr(1);
+  return c.charCodeAt(0);
+}
+
+function writeChar(char) {
+  if (char === 0 || char === 0x0a) {
+    if (bufferOut.length < 1000)
+      Module["onmessage"](bufferOut);
+
+    crFlag = false; bufferOut = "";
+    return;
+  }
+
+  if (char === 0x0d) { crFlag = true; return; }
+  if (crFlag)        { crFlag = false; bufferOut = ""; }
+
+  bufferOut += String.fromCharCode(char);
+}
+
 Module["preRun"].push(function() {
-  if (Module["stdinRead"])
-    FS.init(Module["stdinRead"], Module["stdoutWrite"], Module["stderrWrite"]);
+  FS.init(readChar, writeChar, writeChar);
 
   if (Module["cfgFile"])
     FS.createPreloadedFile(FS.cwd(), Module["cfgFile"], Module["cfgFile"], true, false);

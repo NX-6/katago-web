@@ -8,42 +8,20 @@ if (!crossOriginIsolated) {
 
   const ww = new Worker("katago.main.worker.js");
 
-  ww.postMessage({
-    type: "init",
-    cfgFile: cfgFile,
-    arguments: [
-      urlParams.get("subcommand") || "gtp",
-      "-model", urlParams.get("model") || "web_model",
-      "-config", cfgFile
-    ]
-  });
+  katagoParams["type"] = "init";
 
-  ww.addEventListener("message", ev => {
+  ww.postMessage(katagoParams);
+
+  ww.onmessage = ev => {
     const msg = ev.data;
     switch (msg.type) {
-      case "status":
-        onKatagoStatus(msg.statusCode);
-        break;
-      case "stdout":
-        outputTextarea.value += msg.text + "\n";
-        outputTextarea.scrollTop = outputTextarea.scrollHeight;
-        break;
+      case "status": onKatagoStatus(msg.statusCode); break;
+      case "message": onKatagoMessage(msg.text); break;
     }
-  });
+  };
 
-  function dispatchCmd(cmdStr) {
-    ww.postMessage({type: "cmd", cmdStr: cmdStr});
+  function dispatchMessage(msg) {
+    ww.postMessage({type: "message", text: msg});
   }
-
-  document.getElementById("input").addEventListener("submit", ev => {
-      ev.preventDefault();
-
-      let cmdStr = ev.currentTarget.command.value + "\n";
-      outputTextarea.value += cmdStr;
-      outputTextarea.scrollTop = outputTextarea.scrollHeight;
-      ev.currentTarget.command.value = "";
-
-      dispatchCmd(cmdStr);
-  }, false);
 
 }

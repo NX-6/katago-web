@@ -23,7 +23,7 @@ mergeInto(LibraryManager.library, {
         }
     },
 
-    notifyStatus: function(status) { Module["notifyStatus"](status); },
+    notifyStatus: function(status) { Module["onstatus"](status); },
 
     // dummy functions
     waitForStdin__deps: ['$stdio_support'],
