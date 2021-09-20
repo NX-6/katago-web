@@ -4,10 +4,13 @@ const threadSelect = document.getElementById("thread");
 const subcommandSelect = document.getElementById("subcommand");
 const configSelect = document.getElementById("config");
 const modelSelect = document.getElementById("model");
+const boardsizeSelect = document.getElementById("boardsize");
 const backendSelect = document.getElementById("backend");
+
 const inputForm = document.getElementById("input");
 const cmdInput = document.getElementById("command");
 const outputTextarea = document.getElementById("output");
+
 const showboardButton = document.getElementById("showboard");
 const showboardCheckbox = document.getElementById("showboardAuto");
 const playInput = document.getElementById("play");
@@ -56,7 +59,8 @@ function initSelect(selectElem, urlParam, defaultValue) {
 threadValue = initSelect(threadSelect, "thread", "ui");
 subcommandValue = initSelect(subcommandSelect, "subcommand", "gtp");
 configValue = initSelect(configSelect, "config", "gtp_auto.cfg");
-modelValue = initSelect(modelSelect, "model", "kata1-b6c96-s175395328-d26788732");
+modelValue = initSelect(modelSelect, "model", "b6c96-s175395328-d26788732");
+boardsizeValue = initSelect(boardsizeSelect, "boardsize", "19");
 backendValue = initSelect(backendSelect, "backend", "auto");
 
 showboardButton.addEventListener("click", _ => dispatchCommand("showboard"));
@@ -95,9 +99,12 @@ const katagoParams = {
   cfgFile: configValue,
   arguments: [
     subcommandValue,
-    "-model", "web_models/" + modelValue,
+    "-model", "web_models/" + modelValue + "_" + boardsizeValue,
     "-config", configValue,
-    "-override-config", "tfjsBackend=" + backendValue
+    "-override-config", [
+      "tfjsBackend=" + backendValue,
+      "defaultBoardSize=" + boardsizeValue
+    ].join(",")
   ]
 };
 
@@ -125,7 +132,7 @@ if (!crossOriginIsolated) {
     setTimeout(_ => {
       dispatchCommand("loadsgf " + sgfFile);
       dispatchCommand("showboard");
-    }, 200);
+    }, 500);
   }
 
 } else {
@@ -140,7 +147,7 @@ if (!crossOriginIsolated) {
     setTimeout(_ => {
       dispatchCommand("loadsgf " + sgfFile);
       dispatchCommand("showboard");
-    }, 200);
+    }, 500);
   }
 
   outputTextarea.value += "loading KataGo in UI thread...\n";

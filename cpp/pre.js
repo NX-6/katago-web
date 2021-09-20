@@ -29,8 +29,8 @@ function readChar() {
 
 function writeChar(char) {
   if (char === 0 || char === 0x0a) {
-    if (bufferOut.length < 1000)
-      Module["onmessage"](bufferOut);
+    // if (bufferOut.length < 1000)
+    Module["onmessage"](bufferOut);
 
     crFlag = false; bufferOut = "";
     return;

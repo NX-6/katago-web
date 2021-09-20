@@ -11,19 +11,22 @@ if (typeof window !== 'undefined') {
   }
 
   // initial load via `<script>`
-  if (navigator.serviceWorker
-    && !navigator.serviceWorker.controller) {
-    console.log('starting service worker...');
-    navigator.serviceWorker
-      .register(window.document.currentScript.src)
-      .then(reg => { condReload(reg) || setTimeout(_ => condReload(reg), 100); });
+  if (navigator.serviceWorker) {
+    if (navigator.serviceWorker.controller) {
+      console.log('service worker in control.');
+    } else {
+      console.log('starting service worker...');
+      navigator.serviceWorker
+        .register(window.document.currentScript.src)
+        .then(reg => { condReload(reg) || setTimeout(_ => condReload(reg), 100); });
+    }
   } else {
     console.warn("service workers not supported");
   }
 
 } else {
 
-  // subsequent load via `register`
+  // subsequent load via `register` (in service worker context)
   self.addEventListener("install", () => self.skipWaiting());
   self.addEventListener("activate", ev => ev.waitUntil(self.clients.claim()));
   self.addEventListener("fetch", ev => {
