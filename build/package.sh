@@ -4,7 +4,7 @@ pwd
 ls
 
 mv web/             build/public/
-mv build/web_model  build/public/web_model
+mv build/web_models build/public/web_models
 mv build/em_build/* build/public/
 mkdir -p            build/public/libs/@tensorflow
 cd                  build/public/libs/@tensorflow

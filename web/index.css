@@ -1,10 +1,6 @@
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
-}
+html, body { margin: 0; }
 
 div#root {
   padding: 10px;
@@ -14,20 +10,13 @@ div#root {
   flex-direction: column;
 }
 
-div#root > * + * {
-  margin-top: 5px;
-}
+div#root > * + * { margin-top: 5px; }
 
-div#controls {
-  display: flex;
-  align-items: center;
-}
+div.controls { display: flex; align-items: center; }
 
-div#controls > * + * {
-  margin-left: 5px;
-}
+div.controls > * + * { margin-left: 5px; }
 
-div#controls > div {
+div.controls > div {
   display: flex;
   align-items: center;
 
@@ -35,37 +24,22 @@ div#controls > div {
   padding: 5px 8px;
 }
 
-div#controls > div >  * + * {
-  margin-left: 5px;
-}
+div.controls > div >  * + * { margin-left: 5px; }
 
-form {
-  display: flex;
-  margin-top: 0px;
-}
+form { display: flex; margin-top: 0px; }
 
 input[type=checkbox] { margin-right: 0; }
 
-input, textarea, div#controls > div {
+input, textarea, div.controls > div {
   border: 1px solid hsl(0deg 0% 90%);
   background-color: hsl(240deg 0% 98%);
   border-radius: 3px;
 }
 
-input, textarea {
-  padding: 10px;
-  font-family: monospace;
-}
+input, textarea { padding: 10px; font-family: monospace; }
 
-input#play {
-  width: 50px;
-}
+input#play { width: 50px; }
 
-input#command, textarea {
-  width: 100%;
-}
+input#command, textarea { width: 100%; }
 
-textarea {
-  height: 100%;
-  resize: none;
-}
+textarea { height: 100%; resize: none; }

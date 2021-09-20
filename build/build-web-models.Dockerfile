@@ -21,4 +21,5 @@ WORKDIR /tfjs
 
 RUN     make saved_model/saved_model.pb
 RUN     make
-RUN     mv web_model/ /out
+RUN     mkdir /out && \
+        mv web_model/ /out/kata1-b6c96-s175395328-d26788732

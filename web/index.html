@@ -9,8 +9,44 @@
   </head>
   <body>
     <div id="root">
+      <div class="controls">
+        <div>
+          <span>thread</span>
+          <select id="thread">
+            <option value="ui">UI</option>
+            <option value="worker">worker</option>
+          </select>
+        </div>
+        <div>
+          <span>subcommand</span>
+          <select id="subcommand">
+            <option value="gtp">gtp</option>
+            <option value="analysis">analysis</option>
+          </select>
+        </div>
+        <div>
+          <span>config</span>
+          <select id="config">
+            <option value="gtp_auto.cfg">gtp_auto.cfg</option>
+          </select>
+        </div>
+        <div>
+          <span>model</span>
+          <select id="model">
+            <option value="kata1-b6c96-s175395328-d26788732">kata1-b6c96-s175395328-d26788732</option>
+          </select>
+        </div>
+        <div>
+          <span>backend</span>
+          <select id="backend">
+            <option value="auto">auto</option>
+            <option value="webgl">webgl</option>
+            <option value="cpu">cpu</option>
+          </select>
+        </div>
+      </div>
       <textarea id="output" cols="30" rows="10" placeholder="GTP output" disabled></textarea>
-      <div id="controls">
+      <div class="controls">
         <div>
           <span>play</span>
           <input type="text" id="play">
@@ -36,11 +72,7 @@
       </form>
     </div>
 
-    <script type="text/javascript" src="shared.js"></script>
-
     <script type="text/javascript" src="katago.js"></script>
-    <script type="text/javascript" src="run_in_ui.js"></script>
-
-    <!-- <script type="text/javascript" src="run_in_worker.js"></script> -->
+    <script type="text/javascript" src="demo.js"></script>
   </body>
 </html>

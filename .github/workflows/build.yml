@@ -10,10 +10,10 @@ jobs:
         working-directory: build/
     steps:
       - uses: actions/checkout@v2
-      - run: ./build-artifact.sh web-model ${{ secrets.GITHUB_TOKEN }}
+      - run: ./build-artifact.sh web-models ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/upload-artifact@v2
         with:
-          name: web_model
+          name: web_models
           path: build/out/
           retention-days: 1
 
@@ -40,8 +40,8 @@ jobs:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v2
         with:
-          name: web_model
-          path: build/web_model
+          name: web_models
+          path: build/web_models
       - uses: actions/download-artifact@v2
         with:
           name: em_build
