@@ -16,8 +16,10 @@ const playWhiteButton = document.getElementById("playWhite");
 const genmoveBlackButton = document.getElementById("genmoveBlack");
 const genmoveWhiteButton = document.getElementById("genmoveWhite");
 const analyzeCheckbox = document.getElementById("analyze");
+const loadsgfSelect = document.getElementById("loadsgf");
 
 var dispatchMessage;
+var loadsgf;
 
 function dispatchCommand(cmdStr) {
   const cmdLine = cmdStr + "\n";
@@ -62,6 +64,8 @@ playBlackButton.addEventListener("click", _ => play("black"));
 playWhiteButton.addEventListener("click", _ => play("white"));
 genmoveBlackButton.addEventListener("click", _ => genmove("black"));
 genmoveWhiteButton.addEventListener("click", _ => genmove("white"));
+loadsgfSelect.addEventListener("change", _ => loadsgf(loadsgfSelect.value));
+
 
 inputForm.addEventListener("submit", ev => {
   ev.preventDefault();
@@ -116,18 +120,28 @@ if (!crossOriginIsolated) {
   };
 
   dispatchMessage = msg => ww.postMessage({type: "message", text: msg});
+  loadsgf = sgfFile => {
+    ww.postMessage({type: "preload", file: sgfFile})
+    setTimeout(_ => {
+      dispatchCommand("loadsgf " + sgfFile);
+      dispatchCommand("showboard");
+    }, 200);
+  }
 
 } else {
 
   let kataGoInstance;
 
-  function testLoadsgf(sgfFile) {
-    const {FS} = kataGoInstance;
-    FS.createPreloadedFile(FS.cwd(), sgfFile, sgfFile, true, false);
-    setTimeout(_ => dispatchCommand("loadsgf " + sgfFile), 1000);
-  }
-
   dispatchMessage = msg => kataGoInstance.postMessage(msg);
+  loadsgf = sgfFile => {
+    const {FS} = kataGoInstance;
+    const sgfUrl = "sgf_files/" + sgfFile;
+    FS.createPreloadedFile(FS.cwd(), sgfFile, sgfUrl, true, false);
+    setTimeout(_ => {
+      dispatchCommand("loadsgf " + sgfFile);
+      dispatchCommand("showboard");
+    }, 200);
+  }
 
   outputTextarea.value += "loading KataGo in UI thread...\n";
 
@@ -137,7 +151,6 @@ if (!crossOriginIsolated) {
   KataGo(katagoParams).then(kg => {
     kataGoInstance = kg;
     console.log("KataGo ready", kg);
-    // testLoadsgf("tmp.sgf");
   });
 
 }

@@ -23,5 +23,11 @@ self.addEventListener("message", ev => {
     case "message":
       kataGoInstance.postMessage(msg.text);
       break;
+
+    case "preload":
+      const {FS} = kataGoInstance;
+      FS.createPreloadedFile(FS.cwd(), msg.file, msg.file, true, false);
+      break;
+
   }
 });
