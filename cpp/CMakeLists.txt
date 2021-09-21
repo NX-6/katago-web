@@ -481,43 +481,36 @@ if(USE_BACKEND STREQUAL "TFJS")
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -std=c++11")
 
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=[\"emscripten_sleep\", \"setBackend\", \"downloadMetadata\", \"downloadModel\", \"waitForStdin\", \"predict\"]'")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=[\"emscripten_sleep\", \"setBackend\", \"downloadMetadata\", \"downloadModel\", \"waitForStdin\", \"predict\"]'")
 
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -O3")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3")
 
+    #set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -g")
+    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g")
+
+    ## disabled by -03
+    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ASSERTIONS=1")
+
+    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PTHREADS_DEBUG=1")
+
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s MODULARIZE=1 -s EXPORT_NAME=KataGo")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE=1 -s EXPORT_NAME=KataGo")
 
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS']")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS']")
 
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s USE_PTHREADS=1") # You need wasm to use pthreads with latest-upstream.
+    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s USE_PTHREADS=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_PTHREADS=1")
 
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PTHREAD_POOL_SIZE=1")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s PTHREAD_POOL_SIZE=1")
-
-    #set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PTHREAD_DEBUG=1")
-    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s PTHREAD_DEBUG=1")
-
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ASSERTIONS=1")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ASSERTIONS=1")
-
-    #set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PROXY_TO_PTHREAD=1")
-    #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s PROXY_TO_PTHREAD=1")
+    #set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PTHREAD_POOL_SIZE=2")
 
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ALLOW_MEMORY_GROWTH=1 -s WASM_MEM_MAX=1999MB")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1 -s WASM_MEM_MAX=1999MB")
 
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ENVIRONMENT=web,worker")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ENVIRONMENT=web,worker")
 
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s DEMANGLE_SUPPORT=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --pre-js     ${CMAKE_SOURCE_DIR}/pre.js")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --js-library ${CMAKE_SOURCE_DIR}/tfjs_api.js")
 
-    ## needed from 2.0.26+ (to fix 'ReferenceError: Browser is not defined')
+    ## needed from 2.0.26+ (fixes 'ReferenceError: Browser is not defined')
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --use-preload-plugins")
 endif()
 
