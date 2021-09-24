@@ -141,17 +141,19 @@ if (!crossOriginIsolated) {
 
   dispatchMessage = msg => kataGoInstance.postMessage(msg);
   loadsgf = sgfFile => {
-    const {FS} = kataGoInstance;
-    const sgfUrl = "sgf_files/" + sgfFile;
-    FS.createPreloadedFile(FS.cwd(), sgfFile, sgfUrl, true, false);
-    setTimeout(_ => {
+    fetch("sgf_files/" + sgfFile).then(res => res.text())
+    .then(sgfText => {
+      kataGoInstance.FS.writeFile(sgfFile, sgfText);
       dispatchCommand("loadsgf " + sgfFile);
       dispatchCommand("showboard");
-    }, 500);
+    });
   }
 
   outputTextarea.value += "loading KataGo in UI thread...\n";
 
+  // katagoParams["preRun"] = [
+  //   ({FS}) => FS.writeFile("sample.sgf", "(;B[ee];W[cc])");
+  // ];
   katagoParams["onstatus"] = onKatagoStatus;
   katagoParams["onmessage"] = onKatagoMessage;
 
