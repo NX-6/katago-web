@@ -1,11 +1,20 @@
 if (!("preRun" in Module))
   Module["preRun"] = [];
 
-var bufferIn = "";
+var bufferIn = "showboard\n";
 var bufferOut = "";
 var resolveP = null;
 var rejectP = null;
 var crFlag = false;
+
+if (!Module['ENVIRONMENT_IS_PTHREAD']) {
+   function waitForStdin() {
+     console.log("pre/waitForStdin");
+      return Asyncify.handleSleep(function(wakeUp) {
+          Module["awaitStdin"]().then(_ => wakeUp());
+      });
+    };
+}
 
 Module["postMessage"] = function(cmdStr) {
   bufferIn += cmdStr;
@@ -79,12 +88,13 @@ GraphModelWrapper.prototype.WEBGL = 2;
 GraphModelWrapper.prototype.WASM = 3;
 
 GraphModelWrapper.prototype.getBackend = function() {
-    switch (tf.getBackend()) {
-        case "cpu":   return this.CPU;
-        case "webgl": return this.WEBGL;
-        case "wasm":  return this.WASM;
-        default:      return 0;
-    }
+    // switch (tf.getBackend()) {
+    //     case "cpu":   return this.CPU;
+    //     case "webgl": return this.WEBGL;
+    //     case "wasm":  return this.WASM;
+    //     default:      return 0;
+    // }
+    return 0;
 }
 
 GraphModelWrapper.prototype.setBackend = function(backend) {
@@ -97,38 +107,66 @@ GraphModelWrapper.prototype.setBackend = function(backend) {
         case this.WASM:  be = "wasm"; break;
         default: return;
     }
-    return Asyncify.handleSleep(wakeUp => {
-        tf.setBackend(be).then(s => {
-            console.log("setBackend", be, s);
-            if (s) {
-                wakeUp(1);
-            } else if (backend === this.AUTO && be === "webgl") {
-                // OffscreenCanvasが存在してもsetBackendが失敗するケースがあるのでwasmにフォールバックさせる
-                console.warn("backend " + be + " failed, trying wasm...");
-                tf.setBackend("wasm").then(s => { wakeUp(s ? 1 : 0); });
-            } else {
-                wakeUp(0);
-            }
-        });
-    });
+    // return Asyncify.handleSleep(wakeUp => {
+    //     tf.setBackend(be).then(s => {
+    //         console.log("setBackend", be, s);
+    //         if (s) {
+    //             wakeUp(1);
+    //         } else if (backend === this.AUTO && be === "webgl") {
+    //             // OffscreenCanvasが存在してもsetBackendが失敗するケースがあるのでwasmにフォールバックさせる
+    //             console.warn("backend " + be + " failed, trying wasm...");
+    //             tf.setBackend("wasm").then(s => { wakeUp(s ? 1 : 0); });
+    //         } else {
+    //             wakeUp(0);
+    //         }
+    //     });
+    // });
+
+    // NOTE: tf not defined
+    // tf.setBackend(be).then(s => {
+    //     console.log("setBackend", be, s);
+    //     if (s) {
+    //         // wakeUp(1);
+    //     } else if (backend === this.AUTO && be === "webgl") {
+    //         // OffscreenCanvasが存在してもsetBackendが失敗するケースがあるのでwasmにフォールバックさせる
+    //         console.warn("backend " + be + " failed, trying wasm...");
+    //         tf.setBackend("wasm").then(s => { });
+    //     } else {
+    //         // wakeUp(0);
+    //     }
+    // });
+
+    return 1;
 };
 
 GraphModelWrapper.prototype.downloadMetadata = function(charp) {
-    return Asyncify.handleSleep(wakeUp => {
-        const model = UTF8ToString(charp);
-        loadJSON(model + "/metadata.json")
-          .then(json => { this.version = json.version; wakeUp(1); })
-          .catch(err => { console.error(err); wakeUp(0); });
-    });
+    // return Asyncify.handleSleep(wakeUp => {
+    //     const model = UTF8ToString(charp);
+    //     loadJSON(model + "/metadata.json")
+    //       .then(json => { this.version = json.version; wakeUp(1); })
+    //       .catch(err => { console.error(err); wakeUp(0); });
+    // });
+
+    const model = UTF8ToString(charp);
+    loadJSON(model + "/metadata.json")
+      .then(json => { this.version = json.version; })
+      .catch(err => { console.error(err); });
+    return 1;
 };
 
 GraphModelWrapper.prototype.downloadModel = function(charp) {
-    return Asyncify.handleSleep(wakeUp => {
-        const model = UTF8ToString(charp);
-        tf.loadGraphModel(model + "/model.json")
-          .then(model => { this.model = model; wakeUp(1); })
-          .catch(err => { console.error(err); wakeUp(0); });
-    });
+    // return Asyncify.handleSleep(wakeUp => {
+    //     const model = UTF8ToString(charp);
+    //     tf.loadGraphModel(model + "/model.json")
+    //       .then(model => { this.model = model; wakeUp(1); })
+    //       .catch(err => { console.error(err); wakeUp(0); });
+    // });
+
+    // const model = UTF8ToString(charp);
+    // tf.loadGraphModel(model + "/model.json")
+    //   .then(model => { this.model = model; })
+    //   .catch(err => { console.error(err); });
+    return 1;
 };
 
 GraphModelWrapper.prototype.removeModel = function() {
@@ -183,23 +221,26 @@ GraphModelWrapper.prototype.getModelVersion = function() {
     return this.version;
 };
 
-if (Module['ENVIRONMENT_IS_PTHREAD']) {
-    const tf_ver = "3.0.0"
-    importScripts(
-      `libs/@tensorflow/tfjs@${tf_ver}/dist/tf.min.js`,
-      `libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/tf-backend-wasm.min.js`
-    );
-    tf.wasm.setWasmPaths(`libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/`);
-    if (typeof OffscreenCanvas !== 'undefined') {
-        self.document = {
-            createElement: function() { return new OffscreenCanvas(640, 480); }
-        };
-        self.window = self;
-        self.screen = { width: 640, height: 480 };
-        self.HTMLVideoElement = function() {};
-        self.HTMLImageElement = function() {};
-        self.HTMLCanvasElement = OffscreenCanvas;
-    } else {
-        console.error("no offscreen canvas");
-    }
-}
+// if (Module['ENVIRONMENT_IS_PTHREAD']) {
+//     const tf_ver = "3.0.0"
+//     importScripts(
+//       `libs/@tensorflow/tfjs@${tf_ver}/dist/tf.min.js`,
+//       `libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/tf-backend-wasm.min.js`
+//     );
+//     tf.wasm.setWasmPaths(`libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/`);
+//
+//     // https://github.com/tensorflow/tfjs/issues/102
+//     if (typeof OffscreenCanvas !== 'undefined') {
+//         self.document = {
+//             createElement: function() { return new OffscreenCanvas(640, 480); }
+//         };
+//         // self.window = self;
+//         // self.screen = { width: 640, height: 480 };
+//
+//         self.HTMLVideoElement = function() {};
+//         self.HTMLImageElement = function() {};
+//         self.HTMLCanvasElement = OffscreenCanvas;
+//     } else {
+//         console.error("no offscreen canvas");
+//     }
+// }

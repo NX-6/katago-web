@@ -312,9 +312,12 @@ void NNEvaluator::spawnServerThreads() {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
     numServerThreadsEverSpawned++;
+
+    cout << std::this_thread::get_id() << " [CERR] nneval/spawnServerThread " << i << endl;
     std::thread* thread = new std::thread(
       &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread,i
     );
+    cout << std::this_thread::get_id() << " [CERR] nneval/spawnServerThread DONE " << i << endl;
     serverThreads.push_back(thread);
   }
   /*

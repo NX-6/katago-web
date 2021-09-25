@@ -12,22 +12,24 @@ mergeInto(LibraryManager.library, {
         _jsGetModelVersion = inst.getModelVersion.bind(inst);
     },
 
-    $stdio_support__postset: 'stdio_support();',
-    $stdio_support: function() {
-        if (!Module['ENVIRONMENT_IS_PTHREAD']) {
-           _waitForStdin = function() {
-                return Asyncify.handleSleep(wakeUp => {
-                    Module["awaitStdin"]().then(_ => wakeUp());
-                });
-            };
-        }
-    },
+    // $stdio_support__postset: 'stdio_support();',
+    // $stdio_support: function() {
+    //     if (!Module['ENVIRONMENT_IS_PTHREAD']) {
+    //        _waitForStdin = function() {
+    //           console.log("_waitForStdin");
+    //             return Asyncify.handleSleep(wakeUp => {
+    //                 Module["awaitStdin"]().then(_ => wakeUp());
+    //             });
+    //         };
+    //     }
+    // },
 
-    notifyStatus: function(status) { Module["onstatus"](status); },
+    notifyStatus: function(status) { console.log("notifyStatus", status); Module["onstatus"](status); },
+    waitForStdin: function() { return waitForStdin(); },
 
     // dummy functions
-    waitForStdin__deps: ['$stdio_support'],
-    waitForStdin: function() { console.error("waitForStdin. should not reach"); },
+    // waitForStdin__deps: ['$stdio_support'],
+    // waitForStdin: function() { console.error("waitForStdin. should not reach"); },
     getBackend__deps: ['$method_support'],
     getBackend: function() { console.error("getBackend. should not reach"); },
     setBackend__deps: ['$method_support'],

@@ -9,6 +9,7 @@
 #endif
 
 #include <sstream>
+#include <emscripten.h>
 
 using namespace std;
 
@@ -138,8 +139,8 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
   return 0;
 }
 
-
 int main(int argc, const char* argv[]) {
+
   if(argc < 2) {
     printHelp(argc,argv);
     return 0;
@@ -155,6 +156,7 @@ int main(int argc, const char* argv[]) {
   //so explicitly catch everything and print
   int result;
   try {
+
     result = handleSubcommand(cmdArg, argc, argv);
   }
   catch(std::exception& e) {
@@ -167,6 +169,7 @@ int main(int argc, const char* argv[]) {
   }
   return result;
 #else
+
   return handleSubcommand(cmdArg, argc, argv);
 #endif
 }

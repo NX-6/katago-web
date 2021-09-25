@@ -478,9 +478,16 @@ if(CMAKE_COMPILER_IS_GNUCC)
 endif()
 
 if(USE_BACKEND STREQUAL "TFJS")
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -std=c++11")
+    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS}        -std=c++11")
 
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=[\"emscripten_sleep\", \"setBackend\", \"downloadMetadata\", \"downloadModel\", \"waitForStdin\", \"predict\"]'")
+    set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS}        -pthread")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pthread")
+
+    # set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=[\"emscripten_sleep\", \"setBackend\", \"downloadMetadata\", \"waitForStdin\", \"predict\"]'")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s 'ASYNCIFY_IMPORTS=[\"emscripten_sleep\", \"waitForStdin\", \"waitForStdin2\"]'")
+
+    ## needed to prevent 'unreachable' error
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY_STACK_SIZE=10000")
 
     set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -O3")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3")
@@ -488,26 +495,24 @@ if(USE_BACKEND STREQUAL "TFJS")
     #set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -g")
     #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -g")
 
-    ## disabled by -03
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ASSERTIONS=1")
 
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PTHREADS_DEBUG=1")
+    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -fexceptions")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fexceptions")
 
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s MODULARIZE=1 -s EXPORT_NAME=KataGo")
+    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s NO_DISABLE_EXCEPTION_CATCHING=1")
 
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s EXTRA_EXPORTED_RUNTIME_METHODS=['FS']")
-
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s USE_PTHREADS=1")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s USE_PTHREADS=1")
-
-    #set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s PTHREAD_POOL_SIZE=2")
-
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ALLOW_MEMORY_GROWTH=1 -s WASM_MEM_MAX=1999MB")
-
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s ENVIRONMENT=web,worker")
-    set(CMAKE_CXX_FLAGS        "${CMAKE_CXX_FLAGS}        -s DISABLE_EXCEPTION_CATCHING=0")
-
+    ## ASSERTIONS disabled by -03
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ASSERTIONS=1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s PTHREADS_DEBUG=1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s PTHREAD_POOL_SIZE=2")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE=1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s EXPORT_NAME=KataGo")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s EXPORTED_RUNTIME_METHODS=['FS']")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s WASM_MEM_MAX=1999MB")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ENVIRONMENT=web,worker")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s DEMANGLE_SUPPORT=1")
+
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --pre-js     ${CMAKE_SOURCE_DIR}/pre.js")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --js-library ${CMAKE_SOURCE_DIR}/tfjs_api.js")
 

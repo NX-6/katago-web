@@ -9,3 +9,6 @@ cd $build_dir
 
 emcmake cmake $src_dir -DBUILD_MCTS=1 -DUSE_BACKEND=TFJS && \
 emmake make
+
+cd ..
+cp em_build/katago.* web/

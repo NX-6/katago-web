@@ -63,7 +63,12 @@ struct LoadedModel {
        So you need to load the tfjs model in NNEvaluator thread.
     */
     name = fileName;
-    if (downloadMetadata((int)name.c_str()) == 1) {
+    cout << std::this_thread::get_id() << " [CERR] tfjs/downloadMetadata" << endl;
+    int metaStatus = downloadMetadata((int)name.c_str());
+    cout << std::this_thread::get_id() << " [CERR] tfjs/downloadMetadata DONE" << metaStatus << endl;
+
+
+    if (metaStatus == 1) {
       modelDesc.version = jsGetModelVersion();
       if (modelDesc.version >= 9) {
         modelDesc.numInputChannels = 22;
