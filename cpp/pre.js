@@ -1,54 +1,60 @@
 if (!("preRun" in Module))
   Module["preRun"] = [];
 
-var bufferIn = "showboard\n";
-var bufferOut = "";
-var resolveP = null;
-var rejectP = null;
-var crFlag = false;
+let ioState = {
+  bufferIn: "",
+  bufferOut: "",
+  resolveP: null,
+  rejectP: null,
+  crFlag: false
+}
 
 if (!Module['ENVIRONMENT_IS_PTHREAD']) {
-   function waitForStdin() {
-     console.log("pre/waitForStdin");
+   function pre_awaitStdinAsync() {
       return Asyncify.handleSleep(function(wakeUp) {
-          Module["awaitStdin"]().then(_ => wakeUp());
+          console.log("pre_awaitStdinAsync", ioState.bufferOut);
+          Module["awaitStdin"]().then(_ => {
+            console.log("pre_awaitStdinAsync/resolve", ioState.bufferOut);
+            wakeUp();
+          });
       });
     };
 }
 
 Module["postMessage"] = function(cmdStr) {
-  bufferIn += cmdStr;
-  if (resolveP)
-    resolveP();
+  ioState.bufferIn += cmdStr;
+  if (ioState.resolveP)
+    ioState.resolveP();
   else
     console.warn('not awaiting stdin');
 };
 
 Module["awaitStdin"] = function() {
-  return new Promise((res, rej) => { resolveP = res; rejectP = rej; });
+  return new Promise((res, rej) => { ioState.resolveP = res; ioState.rejectP = rej; });
 }
 
 function readChar() {
-  if (!bufferIn) return null;
+  if (!ioState.bufferIn) return null;
 
-  const c = bufferIn[0];
-  bufferIn = bufferIn.substr(1);
+  const c = ioState.bufferIn[0];
+  ioState.bufferIn = ioState.bufferIn.substr(1);
   return c.charCodeAt(0);
 }
 
 function writeChar(char) {
   if (char === 0 || char === 0x0a) {
     // if (bufferOut.length < 1000)
-    Module["onmessage"](bufferOut);
+    Module["onmessage"](ioState.bufferOut);
 
-    crFlag = false; bufferOut = "";
+    ioState.crFlag = false;
+    ioState.bufferOut = "";
     return;
   }
 
-  if (char === 0x0d) { crFlag = true; return; }
-  if (crFlag)        { crFlag = false; bufferOut = ""; }
+  if (char === 0x0d)  { ioState.crFlag = true; return; }
+  if (ioState.crFlag) { ioState.crFlag = false; ioState.bufferOut = ""; }
 
-  bufferOut += String.fromCharCode(char);
+  ioState.bufferOut += String.fromCharCode(char);
 }
 
 Module["preRun"].push(function() {
@@ -87,7 +93,7 @@ GraphModelWrapper.prototype.CPU = 1;
 GraphModelWrapper.prototype.WEBGL = 2;
 GraphModelWrapper.prototype.WASM = 3;
 
-GraphModelWrapper.prototype.getBackend = function() {
+GraphModelWrapper.prototype.js_getBackend = function() {
     // switch (tf.getBackend()) {
     //     case "cpu":   return this.CPU;
     //     case "webgl": return this.WEBGL;
@@ -97,7 +103,7 @@ GraphModelWrapper.prototype.getBackend = function() {
     return 0;
 }
 
-GraphModelWrapper.prototype.setBackend = function(backend) {
+GraphModelWrapper.prototype.js_setBackend = function(backend) {
     var be;
     switch (backend) {
         case this.AUTO:  be = (typeof OffscreenCanvas !== 'undefined')
@@ -139,7 +145,7 @@ GraphModelWrapper.prototype.setBackend = function(backend) {
     return 1;
 };
 
-GraphModelWrapper.prototype.downloadMetadata = function(charp) {
+GraphModelWrapper.prototype.js_downloadMetadata = function(charp) {
     // return Asyncify.handleSleep(wakeUp => {
     //     const model = UTF8ToString(charp);
     //     loadJSON(model + "/metadata.json")
@@ -154,7 +160,7 @@ GraphModelWrapper.prototype.downloadMetadata = function(charp) {
     return 1;
 };
 
-GraphModelWrapper.prototype.downloadModel = function(charp) {
+GraphModelWrapper.prototype.js_downloadModel = function(charp) {
     // return Asyncify.handleSleep(wakeUp => {
     //     const model = UTF8ToString(charp);
     //     tf.loadGraphModel(model + "/model.json")
@@ -169,11 +175,11 @@ GraphModelWrapper.prototype.downloadModel = function(charp) {
     return 1;
 };
 
-GraphModelWrapper.prototype.removeModel = function() {
+GraphModelWrapper.prototype.js_removeModel = function() {
     this.model = null;
 };
 
-GraphModelWrapper.prototype.predict = function(
+GraphModelWrapper.prototype.js_predict = function(
     batches,
     inputBuffer, boardWxH, inputBufferChannels,
     inputGlobalBuffer, inputGlobalBufferChannels,
@@ -217,7 +223,7 @@ GraphModelWrapper.prototype.predict = function(
     });
 };
 
-GraphModelWrapper.prototype.getModelVersion = function() {
+GraphModelWrapper.prototype.js_getModelVersion = function() {
     return this.version;
 };
 

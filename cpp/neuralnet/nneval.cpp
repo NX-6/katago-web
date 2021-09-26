@@ -1,5 +1,6 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
+#include "../logutil.h"
 
 using namespace std;
 
@@ -286,6 +287,8 @@ static void serveEvals(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
+  logThread("[+THREAD] nneval/serveEvals " + std::to_string(serverThreadIdx));
+
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeedThisThread);
 
@@ -313,11 +316,11 @@ void NNEvaluator::spawnServerThreads() {
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
     numServerThreadsEverSpawned++;
 
-    cout << std::this_thread::get_id() << " [CERR] nneval/spawnServerThread " << i << endl;
+    // cout << std::this_thread::get_id() << " [CERR] nneval/spawnServerThread " << i << endl;
     std::thread* thread = new std::thread(
       &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread,i
     );
-    cout << std::this_thread::get_id() << " [CERR] nneval/spawnServerThread DONE " << i << endl;
+    // cout << std::this_thread::get_id() << " [CERR] nneval/spawnServerThread DONE " << i << endl;
     serverThreads.push_back(thread);
   }
   /*

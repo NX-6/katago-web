@@ -10,13 +10,14 @@
 #include "../program/play.h"
 #include "../command/commandline.h"
 #include "../main.h"
+#include "../logutil.h"
 
 #if defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 
 extern "C" {
-  extern void notifyStatus(int);
-  extern void waitForStdin();
+  extern void js_notifyStatus(int);
+  extern void js_awaitStdinAsync();
 }
 #endif
 
@@ -954,6 +955,9 @@ struct GTPEngine {
     return;
   }
 
+
+
+
   void clearCache() {
     bot->clearSearch();
     nnEval->clearCache();
@@ -1377,7 +1381,7 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   return args;
 }
 
-EM_JS(void, waitForStdin2, (), {
+EM_JS(void, awaitStdinAsync2, (), {
   return Asyncify.handleAsync(function () {
     console.log("waiting with promise...");
     return new Promise((res, rej) => {
@@ -1531,7 +1535,7 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
-  cerr << "setOrResetBoardSize DONE " << endl;
+  logThread("gtp/setOrResetBoardSize DONE");
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1543,13 +1547,14 @@ int MainCmds::gtp(int argc, const char* const* argv) {
     engine->wTimeControls = tc;
   }
 
-  cerr << "still alive 1 " << endl;
+  logThread("gtp/still alive 1");
 
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  cerr << "still alive 2 " << endl;
+  logThread("gtp/still alive 2");
 
+  // NOTE: something breaks worker
   // logger.write("Loaded config " + cfg.getFileName());
   // logger.write("Loaded model "+ nnModelFile);
   // cerr << "still alive 3 " << endl;
@@ -1558,7 +1563,6 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   // logger.write("GTP ready, beginning main protocol loop");
   // //Also check loggingToStderr so that we don't duplicate the message from the log file
   //
-  //
   // if(startupPrintMessageToStderr && !loggingToStderr) {
   //   cerr << "Loaded config " << cfg.getFileName() << endl;
   //   cerr << "Loaded model " << nnModelFile << endl;
@@ -1566,20 +1570,21 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //   cerr << "GTP ready, beginning main protocol loop" << endl;
   // }
 
-  cerr << "notifyStatus " << endl;
+  logThread("gtp/notifyStatus");
   #if defined(__EMSCRIPTEN__)
   // while (engine->nnEval->status <= 1) {
   //   emscripten_sleep(100);
   // }
   // notifyStatus(engine->nnEval->status == 2 ? 1 : -1);
-  notifyStatus(1);
+  js_notifyStatus(1);
   #endif
 
   bool currentlyAnalyzing = false;
   string line;
   while(cin) {
     #if defined(__EMSCRIPTEN__)
-    waitForStdin();
+    logThread("gtp/awaitStdinAsync");
+    js_awaitStdinAsync();
     #endif
     getline(cin,line);
 
@@ -1664,612 +1669,612 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       response = "2";
     }
 
-    // else if(command == "name") {
-    //   response = "KataGo";
-    // }
-    //
-    // else if(command == "version") {
-    //   if(overrideVersion.size() > 0)
-    //     response = overrideVersion;
-    //   else
-    //     response = Version::getKataGoVersion();
-    // }
-    //
-    // else if(command == "known_command") {
-    //   if(pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected single argument for known_command but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     if(std::find(knownCommands.begin(), knownCommands.end(), pieces[0]) != knownCommands.end())
-    //       response = "true";
-    //     else
-    //       response = "false";
-    //   }
-    // }
-    //
-    // else if(command == "list_commands") {
-    //   for(size_t i = 0; i<knownCommands.size(); i++) {
-    //     response += knownCommands[i];
-    //     if(i < knownCommands.size()-1)
-    //       response += "\n";
-    //   }
-    // }
-    //
-    // else if(command == "quit") {
-    //   shouldQuitAfterResponse = true;
-    //   logger.write("Quit requested by controller");
-    // }
-    //
-    // else if(command == "boardsize" || command == "rectangular_boardsize") {
-    //   int newXSize = 0;
-    //   int newYSize = 0;
-    //   bool suc = false;
-    //
-    //   if(pieces.size() == 1) {
-    //     if(contains(pieces[0],':')) {
-    //       vector<string> subpieces = Global::split(pieces[0],':');
-    //       if(subpieces.size() == 2 && Global::tryStringToInt(subpieces[0], newXSize) && Global::tryStringToInt(subpieces[1], newYSize))
-    //         suc = true;
-    //     }
-    //     else {
-    //       if(Global::tryStringToInt(pieces[0], newXSize)) {
-    //         suc = true;
-    //         newYSize = newXSize;
-    //       }
-    //     }
-    //   }
-    //   else if(pieces.size() == 2) {
-    //     if(Global::tryStringToInt(pieces[0], newXSize) && Global::tryStringToInt(pieces[1], newYSize))
-    //       suc = true;
-    //   }
-    //
-    //   if(!suc) {
-    //     responseIsError = true;
-    //     response = "Expected int argument for boardsize or pair of ints but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else if(newXSize < 2 || newYSize < 2) {
-    //     responseIsError = true;
-    //     response = "unacceptable size";
-    //   }
-    //   else if(newXSize > Board::MAX_LEN || newYSize > Board::MAX_LEN) {
-    //     responseIsError = true;
-    //     response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
-    //   }
-    //   else {
-    //     engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize);
-    //   }
-    // }
-    //
-    // else if(command == "clear_board") {
-    //   engine->clearBoard();
-    // }
-    //
-    // else if(command == "komi") {
-    //   float newKomi = 0;
-    //   if(pieces.size() != 1 || !Global::tryStringToFloat(pieces[0],newKomi)) {
-    //     responseIsError = true;
-    //     response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   //GTP spec says that we should accept any komi, but we're going to ignore that.
-    //   else if(isnan(newKomi) || newKomi < Rules::MIN_USER_KOMI || newKomi > Rules::MAX_USER_KOMI) {
-    //     responseIsError = true;
-    //     response = "unacceptable komi";
-    //   }
-    //   else if(!Rules::komiIsIntOrHalfInt(newKomi)) {
-    //     responseIsError = true;
-    //     response = "komi must be an integer or half-integer";
-    //   }
-    //   else {
-    //     if(isForcingKomi)
-    //       newKomi = forcedKomi;
-    //     engine->updateKomiIfNew(newKomi);
-    //     //In case the controller tells us komi every move, restart pondering afterward.
-    //     maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
-    //   }
-    // }
-    //
-    // else if(command == "kata-get-rules") {
-    //   if(pieces.size() != 0) {
-    //     response = "Expected no arguments for kata-get-rules but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     response = engine->getCurrentRules().toJsonStringNoKomi();
-    //   }
-    // }
-    //
-    // else if(command == "kata-set-rules") {
-    //   string rest = Global::concat(pieces," ");
-    //   bool parseSuccess = false;
-    //   Rules newRules;
-    //   try {
-    //     newRules = Rules::parseRulesWithoutKomi(rest,engine->getCurrentRules().komi);
-    //     parseSuccess = true;
-    //   }
-    //   catch(const StringError& err) {
-    //     responseIsError = true;
-    //     response = "Unknown rules '" + rest + "', " + err.what();
-    //   }
-    //   if(parseSuccess) {
-    //     string error;
-    //     bool suc = engine->setRulesNotIncludingKomi(newRules,error);
-    //     if(!suc) {
-    //       responseIsError = true;
-    //       response = error;
-    //     }
-    //     logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-    //     if(!loggingToStderr)
-    //       cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
-    //   }
-    // }
-    //
-    // else if(command == "kata-set-rule") {
-    //   if(pieces.size() != 2) {
-    //     responseIsError = true;
-    //     response = "Expected two arguments for kata-set-rule but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     bool parseSuccess = false;
-    //     Rules currentRules = engine->getCurrentRules();
-    //     Rules newRules;
-    //     try {
-    //       newRules = Rules::updateRules(pieces[0], pieces[1], currentRules);
-    //       parseSuccess = true;
-    //     }
-    //     catch(const StringError& err) {
-    //       responseIsError = true;
-    //       response = err.what();
-    //     }
-    //     if(parseSuccess) {
-    //       string error;
-    //       bool suc = engine->setRulesNotIncludingKomi(newRules,error);
-    //       if(!suc) {
-    //         responseIsError = true;
-    //         response = error;
-    //       }
-    //       logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-    //       if(!loggingToStderr)
-    //         cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "kgs-rules") {
-    //   bool parseSuccess = false;
-    //   Rules newRules;
-    //   if(pieces.size() <= 0) {
-    //     responseIsError = true;
-    //     response = "Expected one argument kgs-rules";
-    //   }
-    //   else {
-    //     string s = Global::toLower(Global::trim(pieces[0]));
-    //     if(s == "chinese") {
-    //       newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
-    //       parseSuccess = true;
-    //     }
-    //     else if(s == "aga") {
-    //       newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
-    //       parseSuccess = true;
-    //     }
-    //     else if(s == "new_zealand") {
-    //       newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
-    //       parseSuccess = true;
-    //     }
-    //     else if(s == "japanese") {
-    //       newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
-    //       parseSuccess = true;
-    //     }
-    //     else {
-    //       responseIsError = true;
-    //       response = "Unknown rules '" + s + "'";
-    //     }
-    //   }
-    //   if(parseSuccess) {
-    //     string error;
-    //     bool suc = engine->setRulesNotIncludingKomi(newRules,error);
-    //     if(!suc) {
-    //       responseIsError = true;
-    //       response = error;
-    //     }
-    //     logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
-    //     if(!loggingToStderr)
-    //       cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
-    //   }
-    // }
-    //
-    // else if(command == "kata-get-param") {
-    //   if(pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     SearchParams params = engine->getParams();
-    //     if(pieces[0] == "playoutDoublingAdvantage") {
-    //       response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
-    //     }
-    //     else if(pieces[0] == "rootPolicyTemperature") {
-    //       response = Global::doubleToString(params.rootPolicyTemperature);
-    //     }
-    //     else if(pieces[0] == "analysisWideRootNoise") {
-    //       response = Global::doubleToString(engine->analysisWideRootNoise);
-    //     }
-    //     else {
-    //       responseIsError = true;
-    //       response = "Invalid parameter";
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "kata-set-param") {
-    //   if(pieces.size() != 2) {
-    //     responseIsError = true;
-    //     response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     double d;
-    //     if(pieces[0] == "playoutDoublingAdvantage") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
-    //         engine->setStaticPlayoutDoublingAdvantage(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
-    //       }
-    //     }
-    //     else if(pieces[0] == "rootPolicyTemperature") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
-    //         engine->setRootPolicyTemperature(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
-    //       }
-    //     }
-    //     else if(pieces[0] == "analysisWideRootNoise") {
-    //       if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
-    //         engine->setAnalysisWideRootNoise(d);
-    //       else {
-    //         responseIsError = true;
-    //         response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
-    //       }
-    //     }
-    //     else {
-    //       responseIsError = true;
-    //       response = "Unknown or invalid parameter: " + pieces[0];
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "time_settings") {
-    //   double mainTime;
-    //   double byoYomiTime;
-    //   int byoYomiStones;
-    //   bool success = false;
-    //   try {
-    //     mainTime = parseMainTime(pieces,0);
-    //     byoYomiTime = parsePerPeriodTime(pieces,1);
-    //     byoYomiStones = parseByoYomiStones(pieces,2);
-    //     success = true;
-    //   }
-    //   catch(const StringError& e) {
-    //     responseIsError = true;
-    //     response = e.what();
-    //   }
-    //   if(success) {
-    //     TimeControls tc;
-    //     //This means no time limits, according to gtp spec
-    //     if(byoYomiStones == 0 && byoYomiTime > 0.0)
-    //       tc = TimeControls();
-    //     else if(byoYomiStones == 0)
-    //       tc = TimeControls::absoluteTime(mainTime);
-    //     else
-    //       tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
-    //     engine->bTimeControls = tc;
-    //     engine->wTimeControls = tc;
-    //   }
-    // }
-    //
-    // else if(command == "kgs-time_settings") {
-    //   if(pieces.size() < 1) {
-    //     responseIsError = true;
-    //     response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
-    //   }
-    //   else {
-    //     string what = Global::toLower(Global::trim(pieces[0]));
-    //     TimeControls tc;
-    //     if(what == "none") {
-    //       tc = TimeControls();
-    //       engine->bTimeControls = tc;
-    //       engine->wTimeControls = tc;
-    //     }
-    //     else if(what == "absolute") {
-    //       double mainTime;
-    //       bool success = false;
-    //       try {
-    //         mainTime = parseMainTime(pieces,1);
-    //         success = true;
-    //       }
-    //       catch(const StringError& e) {
-    //         responseIsError = true;
-    //         response = e.what();
-    //       }
-    //       if(success) {
-    //         tc = TimeControls::absoluteTime(mainTime);
-    //         engine->bTimeControls = tc;
-    //         engine->wTimeControls = tc;
-    //       }
-    //     }
-    //     else if(what == "canadian") {
-    //       double mainTime;
-    //       double byoYomiTime;
-    //       int byoYomiStones;
-    //       bool success = false;
-    //       try {
-    //         mainTime = parseMainTime(pieces,1);
-    //         byoYomiTime = parsePerPeriodTime(pieces,2);
-    //         byoYomiStones = parseByoYomiStones(pieces,3);
-    //         success = true;
-    //       }
-    //       catch(const StringError& e) {
-    //         responseIsError = true;
-    //         response = e.what();
-    //       }
-    //       if(success) {
-    //         //Use the same hack in time-settings - if somehow someone specifies positive overtime but 0 stones for it, intepret as no time control
-    //         if(byoYomiStones == 0 && byoYomiTime > 0.0)
-    //           tc = TimeControls();
-    //         else if(byoYomiStones == 0)
-    //           tc = TimeControls::absoluteTime(mainTime);
-    //         else
-    //           tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
-    //         engine->bTimeControls = tc;
-    //         engine->wTimeControls = tc;
-    //       }
-    //     }
-    //     else if(what == "byoyomi") {
-    //       double mainTime;
-    //       double byoYomiTime;
-    //       int byoYomiPeriods;
-    //       bool success = false;
-    //       try {
-    //         mainTime = parseMainTime(pieces,1);
-    //         byoYomiTime = parsePerPeriodTime(pieces,2);
-    //         byoYomiPeriods = parseByoYomiPeriods(pieces,3);
-    //         success = true;
-    //       }
-    //       catch(const StringError& e) {
-    //         responseIsError = true;
-    //         response = e.what();
-    //       }
-    //       if(success) {
-    //         if(byoYomiPeriods == 0)
-    //           tc = TimeControls::absoluteTime(mainTime);
-    //         else
-    //           tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
-    //         engine->bTimeControls = tc;
-    //         engine->wTimeControls = tc;
-    //       }
-    //     }
-    //     else {
-    //       responseIsError = true;
-    //       response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "time_left") {
-    //   Player pla;
-    //   double time;
-    //   int stones;
-    //   if(pieces.size() != 3
-    //      || !PlayerIO::tryParsePlayer(pieces[0],pla)
-    //      || !Global::tryStringToDouble(pieces[1],time)
-    //      || !Global::tryStringToInt(pieces[2],stones)
-    //      ) {
-    //     responseIsError = true;
-    //     response = "Expected player and float time and int stones for time_left but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   //Be slightly tolerant of negative time left
-    //   else if(isnan(time) || time < -10.0 || time > 1e50) {
-    //     responseIsError = true;
-    //     response = "invalid time";
-    //   }
-    //   else if(stones < 0 || stones > 100000) {
-    //     responseIsError = true;
-    //     response = "invalid stones";
-    //   }
-    //   else {
-    //     TimeControls tc = pla == P_BLACK ? engine->bTimeControls : engine->wTimeControls;
-    //     if(stones > 0 && tc.originalNumPeriods <= 0) {
-    //       responseIsError = true;
-    //       response = "stones left in period is > 0 but the time control used does not have any overtime periods";
-    //     }
-    //     else {
-    //       //Main time
-    //       if(stones == 0) {
-    //         tc.mainTimeLeft = time;
-    //         tc.inOvertime = false;
-    //         tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
-    //         tc.numStonesLeftInPeriod = 0;
-    //         tc.timeLeftInPeriod = 0;
-    //       }
-    //       else {
-    //         //Hack for KGS byo-yomi - interpret num stones as periods instead
-    //         if(tc.originalNumPeriods > 1 && tc.numStonesPerPeriod == 1) {
-    //           tc.mainTimeLeft = 0.0;
-    //           tc.inOvertime = true;
-    //           tc.numPeriodsLeftIncludingCurrent = std::min(stones,tc.originalNumPeriods);
-    //           tc.numStonesLeftInPeriod = 1;
-    //           tc.timeLeftInPeriod = time;
-    //         }
-    //         //Normal canadian time interpertation of GTP
-    //         else {
-    //           tc.mainTimeLeft = 0.0;
-    //           tc.inOvertime = true;
-    //           tc.numPeriodsLeftIncludingCurrent = 1;
-    //           tc.numStonesLeftInPeriod = std::min(stones,tc.numStonesPerPeriod);
-    //           tc.timeLeftInPeriod = time;
-    //         }
-    //       }
-    //       if(pla == P_BLACK)
-    //         engine->bTimeControls = tc;
-    //       else
-    //         engine->wTimeControls = tc;
-    //
-    //       //In case the controller tells us komi every move, restart pondering afterward.
-    //       maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "kata-debug-print-tc") {
-    //   response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
-    //   response += "\n";
-    //   response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
-    // }
-    //
-    // else if(command == "play") {
-    //   Player pla;
-    //   Loc loc;
-    //   if(pieces.size() != 2) {
-    //     responseIsError = true;
-    //     response = "Expected two arguments for play but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
-    //     responseIsError = true;
-    //     response = "Could not parse color: '" + pieces[0] + "'";
-    //   }
-    //   else if(!tryParseLoc(pieces[1],engine->bot->getRootBoard(),loc)) {
-    //     responseIsError = true;
-    //     response = "Could not parse vertex: '" + pieces[1] + "'";
-    //   }
-    //   else {
-    //     bool suc = engine->play(loc,pla);
-    //     if(!suc) {
-    //       responseIsError = true;
-    //       response = "illegal move";
-    //     }
-    //     maybeStartPondering = true;
-    //   }
-    // }
-    //
-    // else if(command == "set_position") {
-    //   if(pieces.size() % 2 != 0) {
-    //     responseIsError = true;
-    //     response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     vector<Move> initialStones;
-    //     for(int i = 0; i<pieces.size(); i += 2) {
-    //       Player pla;
-    //       Loc loc;
-    //       if(!PlayerIO::tryParsePlayer(pieces[i],pla)) {
-    //         responseIsError = true;
-    //         response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-    //         response += "could not parse color: '" + pieces[0] + "'";
-    //         break;
-    //       }
-    //       else if(!tryParseLoc(pieces[i+1],engine->bot->getRootBoard(),loc)) {
-    //         responseIsError = true;
-    //         response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-    //         response += "Could not parse vertex: '" + pieces[1] + "'";
-    //         break;
-    //       }
-    //       else if(loc == Board::PASS_LOC) {
-    //         responseIsError = true;
-    //         response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
-    //         response += "Could not parse vertex: '" + pieces[1] + "'";
-    //         break;
-    //       }
-    //       initialStones.push_back(Move(loc,pla));
-    //     }
-    //     if(!responseIsError) {
-    //       bool suc = engine->setPosition(initialStones);
-    //       if(!suc) {
-    //         responseIsError = true;
-    //         response = "Illegal stone placements - overlapping stones or stones with no liberties?";
-    //       }
-    //       maybeStartPondering = false;
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "undo") {
-    //   bool suc = engine->undo();
-    //   if(!suc) {
-    //     responseIsError = true;
-    //     response = "cannot undo";
-    //   }
-    // }
-    //
-    // else if(command == "genmove" || command == "genmove_debug" || command == "search_debug") {
-    //   Player pla;
-    //   if(pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
-    //     responseIsError = true;
-    //     response = "Could not parse color: '" + pieces[0] + "'";
-    //   }
-    //   else {
-    //     bool debug = command == "genmove_debug" || command == "search_debug";
-    //     bool playChosenMove = command != "search_debug";
-    //
-    //     engine->genMove(
-    //       pla,
-    //       logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-    //       cleanupBeforePass,ogsChatToStderr,
-    //       allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
-    //       logSearchInfo,debug,playChosenMove,
-    //       response,responseIsError,maybeStartPondering,
-    //       GTPEngine::AnalyzeArgs()
-    //     );
-    //   }
-    // }
-    //
-    // else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
-    //   Player pla = engine->bot->getRootPla();
-    //   bool parseFailed = false;
-    //   GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
-    //   if(parseFailed) {
-    //     responseIsError = true;
-    //     response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     bool debug = false;
-    //     bool playChosenMove = true;
-    //
-    //     //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
-    //     if(hasId)
-    //       cout << "=" << Global::intToString(id) << endl;
-    //     else
-    //       cout << "=" << endl;
-    //
-    //     engine->genMove(
-    //       pla,
-    //       logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
-    //       cleanupBeforePass,ogsChatToStderr,
-    //       allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
-    //       logSearchInfo,debug,playChosenMove,
-    //       response,responseIsError,maybeStartPondering,
-    //       args
-    //     );
-    //     //And manually handle the result as well. In case of error, don't report any play.
-    //     suppressResponse = true;
-    //     if(!responseIsError) {
-    //       cout << response << endl;
-    //       cout << endl;
-    //     }
-    //     else {
-    //       cout << endl;
-    //       if(!loggingToStderr)
-    //         cerr << response << endl;
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "clear_cache") {
-    //   engine->clearCache();
-    // }
+    else if(command == "name") {
+      response = "KataGo";
+    }
+
+    else if(command == "version") {
+      if(overrideVersion.size() > 0)
+        response = overrideVersion;
+      else
+        response = Version::getKataGoVersion();
+    }
+
+    else if(command == "known_command") {
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected single argument for known_command but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        if(std::find(knownCommands.begin(), knownCommands.end(), pieces[0]) != knownCommands.end())
+          response = "true";
+        else
+          response = "false";
+      }
+    }
+
+    else if(command == "list_commands") {
+      for(size_t i = 0; i<knownCommands.size(); i++) {
+        response += knownCommands[i];
+        if(i < knownCommands.size()-1)
+          response += "\n";
+      }
+    }
+
+    else if(command == "quit") {
+      shouldQuitAfterResponse = true;
+      logger.write("Quit requested by controller");
+    }
+
+    else if(command == "boardsize" || command == "rectangular_boardsize") {
+      int newXSize = 0;
+      int newYSize = 0;
+      bool suc = false;
+
+      if(pieces.size() == 1) {
+        if(contains(pieces[0],':')) {
+          vector<string> subpieces = Global::split(pieces[0],':');
+          if(subpieces.size() == 2 && Global::tryStringToInt(subpieces[0], newXSize) && Global::tryStringToInt(subpieces[1], newYSize))
+            suc = true;
+        }
+        else {
+          if(Global::tryStringToInt(pieces[0], newXSize)) {
+            suc = true;
+            newYSize = newXSize;
+          }
+        }
+      }
+      else if(pieces.size() == 2) {
+        if(Global::tryStringToInt(pieces[0], newXSize) && Global::tryStringToInt(pieces[1], newYSize))
+          suc = true;
+      }
+
+      if(!suc) {
+        responseIsError = true;
+        response = "Expected int argument for boardsize or pair of ints but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(newXSize < 2 || newYSize < 2) {
+        responseIsError = true;
+        response = "unacceptable size";
+      }
+      else if(newXSize > Board::MAX_LEN || newYSize > Board::MAX_LEN) {
+        responseIsError = true;
+        response = Global::strprintf("unacceptable size (Board::MAX_LEN is %d, consider increasing and recompiling)",(int)Board::MAX_LEN);
+      }
+      else {
+        engine->setOrResetBoardSize(cfg,logger,seedRand,newXSize,newYSize);
+      }
+    }
+
+    else if(command == "clear_board") {
+      engine->clearBoard();
+    }
+
+    else if(command == "komi") {
+      float newKomi = 0;
+      if(pieces.size() != 1 || !Global::tryStringToFloat(pieces[0],newKomi)) {
+        responseIsError = true;
+        response = "Expected single float argument for komi but got '" + Global::concat(pieces," ") + "'";
+      }
+      //GTP spec says that we should accept any komi, but we're going to ignore that.
+      else if(isnan(newKomi) || newKomi < Rules::MIN_USER_KOMI || newKomi > Rules::MAX_USER_KOMI) {
+        responseIsError = true;
+        response = "unacceptable komi";
+      }
+      else if(!Rules::komiIsIntOrHalfInt(newKomi)) {
+        responseIsError = true;
+        response = "komi must be an integer or half-integer";
+      }
+      else {
+        if(isForcingKomi)
+          newKomi = forcedKomi;
+        engine->updateKomiIfNew(newKomi);
+        //In case the controller tells us komi every move, restart pondering afterward.
+        maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+      }
+    }
+
+    else if(command == "kata-get-rules") {
+      if(pieces.size() != 0) {
+        response = "Expected no arguments for kata-get-rules but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        response = engine->getCurrentRules().toJsonStringNoKomi();
+      }
+    }
+
+    else if(command == "kata-set-rules") {
+      string rest = Global::concat(pieces," ");
+      bool parseSuccess = false;
+      Rules newRules;
+      try {
+        newRules = Rules::parseRulesWithoutKomi(rest,engine->getCurrentRules().komi);
+        parseSuccess = true;
+      }
+      catch(const StringError& err) {
+        responseIsError = true;
+        response = "Unknown rules '" + rest + "', " + err.what();
+      }
+      if(parseSuccess) {
+        string error;
+        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
+        }
+        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        if(!loggingToStderr)
+          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+      }
+    }
+
+    else if(command == "kata-set-rule") {
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected two arguments for kata-set-rule but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        bool parseSuccess = false;
+        Rules currentRules = engine->getCurrentRules();
+        Rules newRules;
+        try {
+          newRules = Rules::updateRules(pieces[0], pieces[1], currentRules);
+          parseSuccess = true;
+        }
+        catch(const StringError& err) {
+          responseIsError = true;
+          response = err.what();
+        }
+        if(parseSuccess) {
+          string error;
+          bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+          if(!suc) {
+            responseIsError = true;
+            response = error;
+          }
+          logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+          if(!loggingToStderr)
+            cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+        }
+      }
+    }
+
+    else if(command == "kgs-rules") {
+      bool parseSuccess = false;
+      Rules newRules;
+      if(pieces.size() <= 0) {
+        responseIsError = true;
+        response = "Expected one argument kgs-rules";
+      }
+      else {
+        string s = Global::toLower(Global::trim(pieces[0]));
+        if(s == "chinese") {
+          newRules = Rules::parseRulesWithoutKomi("chinese-kgs",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "aga") {
+          newRules = Rules::parseRulesWithoutKomi("aga",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "new_zealand") {
+          newRules = Rules::parseRulesWithoutKomi("new_zealand",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else if(s == "japanese") {
+          newRules = Rules::parseRulesWithoutKomi("japanese",engine->getCurrentRules().komi);
+          parseSuccess = true;
+        }
+        else {
+          responseIsError = true;
+          response = "Unknown rules '" + s + "'";
+        }
+      }
+      if(parseSuccess) {
+        string error;
+        bool suc = engine->setRulesNotIncludingKomi(newRules,error);
+        if(!suc) {
+          responseIsError = true;
+          response = error;
+        }
+        logger.write("Changed rules to " + newRules.toStringNoKomiMaybeNice());
+        if(!loggingToStderr)
+          cerr << "Changed rules to " + newRules.toStringNoKomiMaybeNice() << endl;
+      }
+    }
+
+    else if(command == "kata-get-param") {
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one arguments for kata-get-param but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        SearchParams params = engine->getParams();
+        if(pieces[0] == "playoutDoublingAdvantage") {
+          response = Global::doubleToString(engine->staticPlayoutDoublingAdvantage);
+        }
+        else if(pieces[0] == "rootPolicyTemperature") {
+          response = Global::doubleToString(params.rootPolicyTemperature);
+        }
+        else if(pieces[0] == "analysisWideRootNoise") {
+          response = Global::doubleToString(engine->analysisWideRootNoise);
+        }
+        else {
+          responseIsError = true;
+          response = "Invalid parameter";
+        }
+      }
+    }
+
+    else if(command == "kata-set-param") {
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected two arguments for kata-set-param but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        double d;
+        if(pieces[0] == "playoutDoublingAdvantage") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= -3.0 && d <= 3.0)
+            engine->setStaticPlayoutDoublingAdvantage(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from -3.0 to 3.0";
+          }
+        }
+        else if(pieces[0] == "rootPolicyTemperature") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.01 && d <= 100.0)
+            engine->setRootPolicyTemperature(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.01 to 100.0";
+          }
+        }
+        else if(pieces[0] == "analysisWideRootNoise") {
+          if(Global::tryStringToDouble(pieces[1],d) && d >= 0.0 && d <= 5.0)
+            engine->setAnalysisWideRootNoise(d);
+          else {
+            responseIsError = true;
+            response = "Invalid value for " + pieces[0] + ", must be float from 0.0 to 2.0";
+          }
+        }
+        else {
+          responseIsError = true;
+          response = "Unknown or invalid parameter: " + pieces[0];
+        }
+      }
+    }
+
+    else if(command == "time_settings") {
+      double mainTime;
+      double byoYomiTime;
+      int byoYomiStones;
+      bool success = false;
+      try {
+        mainTime = parseMainTime(pieces,0);
+        byoYomiTime = parsePerPeriodTime(pieces,1);
+        byoYomiStones = parseByoYomiStones(pieces,2);
+        success = true;
+      }
+      catch(const StringError& e) {
+        responseIsError = true;
+        response = e.what();
+      }
+      if(success) {
+        TimeControls tc;
+        //This means no time limits, according to gtp spec
+        if(byoYomiStones == 0 && byoYomiTime > 0.0)
+          tc = TimeControls();
+        else if(byoYomiStones == 0)
+          tc = TimeControls::absoluteTime(mainTime);
+        else
+          tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
+        engine->bTimeControls = tc;
+        engine->wTimeControls = tc;
+      }
+    }
+
+    else if(command == "kgs-time_settings") {
+      if(pieces.size() < 1) {
+        responseIsError = true;
+        response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+      }
+      else {
+        string what = Global::toLower(Global::trim(pieces[0]));
+        TimeControls tc;
+        if(what == "none") {
+          tc = TimeControls();
+          engine->bTimeControls = tc;
+          engine->wTimeControls = tc;
+        }
+        else if(what == "absolute") {
+          double mainTime;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            tc = TimeControls::absoluteTime(mainTime);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "canadian") {
+          double mainTime;
+          double byoYomiTime;
+          int byoYomiStones;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            byoYomiTime = parsePerPeriodTime(pieces,2);
+            byoYomiStones = parseByoYomiStones(pieces,3);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            //Use the same hack in time-settings - if somehow someone specifies positive overtime but 0 stones for it, intepret as no time control
+            if(byoYomiStones == 0 && byoYomiTime > 0.0)
+              tc = TimeControls();
+            else if(byoYomiStones == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,1,byoYomiStones);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else if(what == "byoyomi") {
+          double mainTime;
+          double byoYomiTime;
+          int byoYomiPeriods;
+          bool success = false;
+          try {
+            mainTime = parseMainTime(pieces,1);
+            byoYomiTime = parsePerPeriodTime(pieces,2);
+            byoYomiPeriods = parseByoYomiPeriods(pieces,3);
+            success = true;
+          }
+          catch(const StringError& e) {
+            responseIsError = true;
+            response = e.what();
+          }
+          if(success) {
+            if(byoYomiPeriods == 0)
+              tc = TimeControls::absoluteTime(mainTime);
+            else
+              tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
+            engine->bTimeControls = tc;
+            engine->wTimeControls = tc;
+          }
+        }
+        else {
+          responseIsError = true;
+          response = "Expected 'none', 'absolute', 'byoyomi', or 'canadian' as first argument for kgs-time_settings";
+        }
+      }
+    }
+
+    else if(command == "time_left") {
+      Player pla;
+      double time;
+      int stones;
+      if(pieces.size() != 3
+         || !PlayerIO::tryParsePlayer(pieces[0],pla)
+         || !Global::tryStringToDouble(pieces[1],time)
+         || !Global::tryStringToInt(pieces[2],stones)
+         ) {
+        responseIsError = true;
+        response = "Expected player and float time and int stones for time_left but got '" + Global::concat(pieces," ") + "'";
+      }
+      //Be slightly tolerant of negative time left
+      else if(isnan(time) || time < -10.0 || time > 1e50) {
+        responseIsError = true;
+        response = "invalid time";
+      }
+      else if(stones < 0 || stones > 100000) {
+        responseIsError = true;
+        response = "invalid stones";
+      }
+      else {
+        TimeControls tc = pla == P_BLACK ? engine->bTimeControls : engine->wTimeControls;
+        if(stones > 0 && tc.originalNumPeriods <= 0) {
+          responseIsError = true;
+          response = "stones left in period is > 0 but the time control used does not have any overtime periods";
+        }
+        else {
+          //Main time
+          if(stones == 0) {
+            tc.mainTimeLeft = time;
+            tc.inOvertime = false;
+            tc.numPeriodsLeftIncludingCurrent = tc.originalNumPeriods;
+            tc.numStonesLeftInPeriod = 0;
+            tc.timeLeftInPeriod = 0;
+          }
+          else {
+            //Hack for KGS byo-yomi - interpret num stones as periods instead
+            if(tc.originalNumPeriods > 1 && tc.numStonesPerPeriod == 1) {
+              tc.mainTimeLeft = 0.0;
+              tc.inOvertime = true;
+              tc.numPeriodsLeftIncludingCurrent = std::min(stones,tc.originalNumPeriods);
+              tc.numStonesLeftInPeriod = 1;
+              tc.timeLeftInPeriod = time;
+            }
+            //Normal canadian time interpertation of GTP
+            else {
+              tc.mainTimeLeft = 0.0;
+              tc.inOvertime = true;
+              tc.numPeriodsLeftIncludingCurrent = 1;
+              tc.numStonesLeftInPeriod = std::min(stones,tc.numStonesPerPeriod);
+              tc.timeLeftInPeriod = time;
+            }
+          }
+          if(pla == P_BLACK)
+            engine->bTimeControls = tc;
+          else
+            engine->wTimeControls = tc;
+
+          //In case the controller tells us komi every move, restart pondering afterward.
+          maybeStartPondering = engine->bot->getRootHist().moveHistory.size() > 0;
+        }
+      }
+    }
+
+    else if(command == "kata-debug-print-tc") {
+      response += "Black "+ engine->bTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+      response += "\n";
+      response += "White "+ engine->wTimeControls.toDebugString(engine->bot->getRootBoard(),engine->bot->getRootHist(),initialParams.lagBuffer);
+    }
+
+    else if(command == "play") {
+      Player pla;
+      Loc loc;
+      if(pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected two arguments for play but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
+        responseIsError = true;
+        response = "Could not parse color: '" + pieces[0] + "'";
+      }
+      else if(!tryParseLoc(pieces[1],engine->bot->getRootBoard(),loc)) {
+        responseIsError = true;
+        response = "Could not parse vertex: '" + pieces[1] + "'";
+      }
+      else {
+        bool suc = engine->play(loc,pla);
+        if(!suc) {
+          responseIsError = true;
+          response = "illegal move";
+        }
+        maybeStartPondering = true;
+      }
+    }
+
+    else if(command == "set_position") {
+      if(pieces.size() % 2 != 0) {
+        responseIsError = true;
+        response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        vector<Move> initialStones;
+        for(int i = 0; i<pieces.size(); i += 2) {
+          Player pla;
+          Loc loc;
+          if(!PlayerIO::tryParsePlayer(pieces[i],pla)) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "could not parse color: '" + pieces[0] + "'";
+            break;
+          }
+          else if(!tryParseLoc(pieces[i+1],engine->bot->getRootBoard(),loc)) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "Could not parse vertex: '" + pieces[1] + "'";
+            break;
+          }
+          else if(loc == Board::PASS_LOC) {
+            responseIsError = true;
+            response = "Expected a space-separated sequence of <COLOR> <VERTEX> pairs but got '" + Global::concat(pieces," ") + "': ";
+            response += "Could not parse vertex: '" + pieces[1] + "'";
+            break;
+          }
+          initialStones.push_back(Move(loc,pla));
+        }
+        if(!responseIsError) {
+          bool suc = engine->setPosition(initialStones);
+          if(!suc) {
+            responseIsError = true;
+            response = "Illegal stone placements - overlapping stones or stones with no liberties?";
+          }
+          maybeStartPondering = false;
+        }
+      }
+    }
+
+    else if(command == "undo") {
+      bool suc = engine->undo();
+      if(!suc) {
+        responseIsError = true;
+        response = "cannot undo";
+      }
+    }
+
+    else if(command == "genmove" || command == "genmove_debug" || command == "search_debug") {
+      Player pla;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for genmove but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!PlayerIO::tryParsePlayer(pieces[0],pla)) {
+        responseIsError = true;
+        response = "Could not parse color: '" + pieces[0] + "'";
+      }
+      else {
+        bool debug = command == "genmove_debug" || command == "search_debug";
+        bool playChosenMove = command != "search_debug";
+
+        engine->genMove(
+          pla,
+          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
+          cleanupBeforePass,ogsChatToStderr,
+          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          logSearchInfo,debug,playChosenMove,
+          response,responseIsError,maybeStartPondering,
+          GTPEngine::AnalyzeArgs()
+        );
+      }
+    }
+
+    else if(command == "genmove_analyze" || command == "lz-genmove_analyze" || command == "kata-genmove_analyze") {
+      Player pla = engine->bot->getRootPla();
+      bool parseFailed = false;
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+      if(parseFailed) {
+        responseIsError = true;
+        response = "Could not parse genmove_analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        bool debug = false;
+        bool playChosenMove = true;
+
+        //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
+        if(hasId)
+          cout << "=" << Global::intToString(id) << endl;
+        else
+          cout << "=" << endl;
+
+        engine->genMove(
+          pla,
+          logger,searchFactorWhenWinningThreshold,searchFactorWhenWinning,
+          cleanupBeforePass,ogsChatToStderr,
+          allowResignation,resignThreshold,resignConsecTurns,resignMinScoreDifference,
+          logSearchInfo,debug,playChosenMove,
+          response,responseIsError,maybeStartPondering,
+          args
+        );
+        //And manually handle the result as well. In case of error, don't report any play.
+        suppressResponse = true;
+        if(!responseIsError) {
+          cout << response << endl;
+          cout << endl;
+        }
+        else {
+          cout << endl;
+          if(!loggingToStderr)
+            cerr << response << endl;
+        }
+      }
+    }
+
+    else if(command == "clear_cache") {
+      engine->clearCache();
+    }
     else if(command == "showboard") {
       ostringstream sout;
       engine->bot->getRootHist().printBasicInfo(sout, engine->bot->getRootBoard());
@@ -2284,350 +2289,350 @@ int MainCmds::gtp(int argc, const char* const* argv) {
       response = Global::trim(filtered);
     }
 
-    // else if(command == "fixed_handicap") {
-    //   int n;
-    //   if(pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected one argument for fixed_handicap but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else if(!Global::tryStringToInt(pieces[0],n)) {
-    //     responseIsError = true;
-    //     response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
-    //   }
-    //   else if(n < 2) {
-    //     responseIsError = true;
-    //     response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
-    //   }
-    //   else if(!engine->bot->getRootBoard().isEmpty()) {
-    //     responseIsError = true;
-    //     response = "Board is not empty";
-    //   }
-    //   else {
-    //     engine->placeFixedHandicap(n,response,responseIsError);
-    //   }
-    // }
-    //
-    // else if(command == "place_free_handicap") {
-    //   int n;
-    //   if(pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected one argument for place_free_handicap but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else if(!Global::tryStringToInt(pieces[0],n)) {
-    //     responseIsError = true;
-    //     response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
-    //   }
-    //   else if(n < 2) {
-    //     responseIsError = true;
-    //     response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
-    //   }
-    //   else if(!engine->bot->getRootBoard().isEmpty()) {
-    //     responseIsError = true;
-    //     response = "Board is not empty";
-    //   }
-    //   else {
-    //     engine->placeFreeHandicap(n,response,responseIsError,seedRand);
-    //   }
-    // }
-    //
-    // else if(command == "set_free_handicap") {
-    //   if(!engine->bot->getRootBoard().isEmpty()) {
-    //     responseIsError = true;
-    //     response = "Board is not empty";
-    //   }
-    //   else {
-    //     vector<Loc> locs;
-    //     int xSize = engine->bot->getRootBoard().x_size;
-    //     int ySize = engine->bot->getRootBoard().y_size;
-    //     Board board(xSize,ySize);
-    //     for(int i = 0; i<pieces.size(); i++) {
-    //       Loc loc;
-    //       bool suc = tryParseLoc(pieces[i],board,loc);
-    //       if(!suc || loc == Board::PASS_LOC) {
-    //         responseIsError = true;
-    //         response = "Invalid handicap location: " + pieces[i];
-    //       }
-    //       locs.push_back(loc);
-    //     }
-    //     for(int i = 0; i<locs.size(); i++)
-    //       board.setStone(locs[i],P_BLACK);
-    //
-    //     Player pla = P_WHITE;
-    //     BoardHistory hist(board,pla,engine->getCurrentRules(),0);
-    //     hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
-    //     vector<Move> newMoveHistory;
-    //     engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
-    //   }
-    // }
-    //
-    // else if(command == "final_score") {
-    //   engine->stopAndWait();
-    //
-    //   BoardHistory hist = engine->bot->getRootHist();
-    //
-    //   //If the game is finished, then we score the game as-is.
-    //   //If it's not finished, then we try to get a bit clever.
-    //   Player winner = C_EMPTY;
-    //   double finalWhiteMinusBlackScore = 0.0;
-    //   if(hist.isGameFinished) {
-    //     //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
-    //     winner = hist.winner;
-    //     finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
-    //   }
-    //   else {
-    //     double lead = engine->computeLead(logger);
-    //     finalWhiteMinusBlackScore = lead;
-    //     winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
-    //   }
-    //
-    //   if(winner == C_EMPTY)
-    //     response = "0";
-    //   else if(winner == C_BLACK)
-    //     response = "B+" + Global::strprintf("%.1f",-finalWhiteMinusBlackScore);
-    //   else if(winner == C_WHITE)
-    //     response = "W+" + Global::strprintf("%.1f",finalWhiteMinusBlackScore);
-    //   else
-    //     ASSERT_UNREACHABLE;
-    // }
-    //
-    // else if(command == "final_status_list") {
-    //   int statusMode = 0;
-    //   if(pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected one argument for final_status_list but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     if(pieces[0] == "alive")
-    //       statusMode = 0;
-    //     else if(pieces[0] == "seki")
-    //       statusMode = 1;
-    //     else if(pieces[0] == "dead")
-    //       statusMode = 2;
-    //     else {
-    //       responseIsError = true;
-    //       response = "Argument to final_status_list must be 'alive' or 'seki' or 'dead'";
-    //       statusMode = 3;
-    //     }
-    //
-    //     if(statusMode < 3) {
-    //       vector<bool> isAlive = engine->computeAnticipatedStatusesWithOwnership(logger);
-    //       Board board = engine->bot->getRootBoard();
-    //       vector<Loc> locsToReport;
-    //
-    //       if(statusMode == 0) {
-    //         for(int y = 0; y<board.y_size; y++) {
-    //           for(int x = 0; x<board.x_size; x++) {
-    //             Loc loc = Location::getLoc(x,y,board.x_size);
-    //             if(board.colors[loc] != C_EMPTY && isAlive[loc])
-    //               locsToReport.push_back(loc);
-    //           }
-    //         }
-    //       }
-    //       if(statusMode == 2) {
-    //         for(int y = 0; y<board.y_size; y++) {
-    //           for(int x = 0; x<board.x_size; x++) {
-    //             Loc loc = Location::getLoc(x,y,board.x_size);
-    //             if(board.colors[loc] != C_EMPTY && !isAlive[loc])
-    //               locsToReport.push_back(loc);
-    //           }
-    //         }
-    //       }
-    //
-    //       response = "";
-    //       for(int i = 0; i<locsToReport.size(); i++) {
-    //         Loc loc = locsToReport[i];
-    //         if(i > 0)
-    //           response += " ";
-    //         response += Location::toString(loc,board);
-    //       }
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "loadsgf") {
-    //   if(pieces.size() != 1 && pieces.size() != 2) {
-    //     responseIsError = true;
-    //     response = "Expected one or two arguments for loadsgf but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     string filename = pieces[0];
-    //     bool parseFailed = false;
-    //     bool moveNumberSpecified = false;
-    //     int moveNumber = 0;
-    //     if(pieces.size() == 2) {
-    //       bool suc = Global::tryStringToInt(pieces[1],moveNumber);
-    //       if(!suc || moveNumber < 0 || moveNumber > 10000000)
-    //         parseFailed = true;
-    //       else {
-    //         moveNumberSpecified = true;
-    //       }
-    //     }
-    //     if(parseFailed) {
-    //       responseIsError = true;
-    //       response = "Invalid value for moveNumber for loadsgf";
-    //     }
-    //     else {
-    //       Board sgfInitialBoard;
-    //       Player sgfInitialNextPla;
-    //       BoardHistory sgfInitialHist;
-    //       Rules sgfRules;
-    //       Board sgfBoard;
-    //       Player sgfNextPla;
-    //       BoardHistory sgfHist;
-    //
-    //       bool sgfParseSuccess = false;
-    //       CompactSgf* sgf = NULL;
-    //       try {
-    //         sgf = CompactSgf::loadFile(filename);
-    //
-    //         if(sgf->moves.size() > 0x3FFFFFFF)
-    //           throw StringError("Sgf has too many moves");
-    //         if(!moveNumberSpecified || moveNumber > sgf->moves.size())
-    //           moveNumber = (int)sgf->moves.size();
-    //
-    //         sgfRules = sgf->getRulesOrWarn(
-    //           engine->getCurrentRules(), //Use current rules as default
-    //           [&logger](const string& msg) { logger.write(msg); cerr << msg << endl; }
-    //         );
-    //         if(engine->nnEval != NULL) {
-    //           bool rulesWereSupported;
-    //           Rules supportedRules = engine->nnEval->getSupportedRules(sgfRules,rulesWereSupported);
-    //           if(!rulesWereSupported) {
-    //             ostringstream out;
-    //             out << "WARNING: Rules " << sgfRules.toJsonStringNoKomi()
-    //                 << " from sgf not supported by neural net, using " << supportedRules.toJsonStringNoKomi() << " instead";
-    //             logger.write(out.str());
-    //             if(!loggingToStderr)
-    //               cerr << out.str() << endl;
-    //             sgfRules = supportedRules;
-    //           }
-    //         }
-    //
-    //         if(isForcingKomi)
-    //           sgfRules.komi = forcedKomi;
-    //
-    //         {
-    //           //See if the rules differ, IGNORING komi differences
-    //           Rules currentRules = engine->getCurrentRules();
-    //           currentRules.komi = sgfRules.komi;
-    //           if(sgfRules != currentRules) {
-    //             ostringstream out;
-    //             out << "Changing rules to " << sgfRules.toJsonStringNoKomi();
-    //             logger.write(out.str());
-    //             if(!loggingToStderr)
-    //               cerr << out.str() << endl;
-    //           }
-    //         }
-    //
-    //         sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
-    //         sgfInitialHist.setInitialTurnNumber(sgfInitialBoard.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
-    //         sgfBoard = sgfInitialBoard;
-    //         sgfNextPla = sgfInitialNextPla;
-    //         sgfHist = sgfInitialHist;
-    //         sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber,preventEncore);
-    //
-    //         delete sgf;
-    //         sgf = NULL;
-    //         sgfParseSuccess = true;
-    //       }
-    //       catch(const StringError& err) {
-    //         delete sgf;
-    //         sgf = NULL;
-    //         responseIsError = true;
-    //         response = "Could not load sgf: " + string(err.what());
-    //       }
-    //       catch(...) {
-    //         delete sgf;
-    //         sgf = NULL;
-    //         responseIsError = true;
-    //         response = "Cannot load file";
-    //       }
-    //
-    //       if(sgfParseSuccess) {
-    //         if(sgfRules.komi != engine->getCurrentRules().komi) {
-    //           ostringstream out;
-    //           out << "Changing komi to " << sgfRules.komi;
-    //           logger.write(out.str());
-    //           if(!loggingToStderr)
-    //             cerr << out.str() << endl;
-    //         }
-    //         engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
-    //       }
-    //     }
-    //   }
-    // }
-    //
-    // else if(command == "printsgf") {
-    //   if(pieces.size() != 0 && pieces.size() != 1) {
-    //     responseIsError = true;
-    //     response = "Expected zero or one argument for print but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else if(pieces.size() == 0 || pieces[0] == "-") {
-    //     ostringstream out;
-    //     WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-    //     response = out.str();
-    //   }
-    //   else {
-    //     ofstream out(pieces[0]);
-    //     WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
-    //     out.close();
-    //     response = "";
-    //   }
-    // }
-    //
-    // else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
-    //   Player pla = engine->bot->getRootPla();
-    //   bool parseFailed = false;
-    //   GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
-    //
-    //   if(parseFailed) {
-    //     responseIsError = true;
-    //     response = "Could not parse analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
-    //     if(hasId)
-    //       cout << "=" << Global::intToString(id) << endl;
-    //     else
-    //       cout << "=" << endl;
-    //
-    //     engine->analyze(pla, args);
-    //
-    //     //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
-    //     suppressResponse = true;
-    //     currentlyAnalyzing = true;
-    //   }
-    // }
-    //
-    // else if(command == "kata-raw-nn") {
-    //   int whichSymmetry = NNInputs::SYMMETRY_ALL;
-    //   bool parsed = false;
-    //   if(pieces.size() == 1) {
-    //     string s = Global::trim(Global::toLower(pieces[0]));
-    //     if(s == "all")
-    //       parsed = true;
-    //     else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1)
-    //       parsed = true;
-    //   }
-    //
-    //   if(!parsed) {
-    //     responseIsError = true;
-    //     response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
-    //   }
-    //   else {
-    //     response = engine->rawNN(whichSymmetry);
-    //   }
-    // }
-    //
-    //
-    // else if(command == "cputime" || command == "gomill-cpu_time") {
-    //   response = Global::doubleToString(engine->genmoveTimeSum);
-    // }
-    //
-    // else if(command == "stop") {
-    //   //Stop any ongoing ponder or analysis
-    //   engine->stopAndWait();
-    // }
+    else if(command == "fixed_handicap") {
+      int n;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for fixed_handicap but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!Global::tryStringToInt(pieces[0],n)) {
+        responseIsError = true;
+        response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
+      }
+      else if(n < 2) {
+        responseIsError = true;
+        response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
+      }
+      else if(!engine->bot->getRootBoard().isEmpty()) {
+        responseIsError = true;
+        response = "Board is not empty";
+      }
+      else {
+        engine->placeFixedHandicap(n,response,responseIsError);
+      }
+    }
+
+    else if(command == "place_free_handicap") {
+      int n;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for place_free_handicap but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(!Global::tryStringToInt(pieces[0],n)) {
+        responseIsError = true;
+        response = "Could not parse number of handicap stones: '" + pieces[0] + "'";
+      }
+      else if(n < 2) {
+        responseIsError = true;
+        response = "Number of handicap stones less than 2: '" + pieces[0] + "'";
+      }
+      else if(!engine->bot->getRootBoard().isEmpty()) {
+        responseIsError = true;
+        response = "Board is not empty";
+      }
+      else {
+        engine->placeFreeHandicap(n,response,responseIsError,seedRand);
+      }
+    }
+
+    else if(command == "set_free_handicap") {
+      if(!engine->bot->getRootBoard().isEmpty()) {
+        responseIsError = true;
+        response = "Board is not empty";
+      }
+      else {
+        vector<Loc> locs;
+        int xSize = engine->bot->getRootBoard().x_size;
+        int ySize = engine->bot->getRootBoard().y_size;
+        Board board(xSize,ySize);
+        for(int i = 0; i<pieces.size(); i++) {
+          Loc loc;
+          bool suc = tryParseLoc(pieces[i],board,loc);
+          if(!suc || loc == Board::PASS_LOC) {
+            responseIsError = true;
+            response = "Invalid handicap location: " + pieces[i];
+          }
+          locs.push_back(loc);
+        }
+        for(int i = 0; i<locs.size(); i++)
+          board.setStone(locs[i],P_BLACK);
+
+        Player pla = P_WHITE;
+        BoardHistory hist(board,pla,engine->getCurrentRules(),0);
+        hist.setInitialTurnNumber(board.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
+        vector<Move> newMoveHistory;
+        engine->setPositionAndRules(pla,board,hist,board,pla,newMoveHistory);
+      }
+    }
+
+    else if(command == "final_score") {
+      engine->stopAndWait();
+
+      BoardHistory hist = engine->bot->getRootHist();
+
+      //If the game is finished, then we score the game as-is.
+      //If it's not finished, then we try to get a bit clever.
+      Player winner = C_EMPTY;
+      double finalWhiteMinusBlackScore = 0.0;
+      if(hist.isGameFinished) {
+        //For GTP purposes, we treat noResult as a draw since there is no provision for anything else.
+        winner = hist.winner;
+        finalWhiteMinusBlackScore = hist.finalWhiteMinusBlackScore;
+      }
+      else {
+        double lead = engine->computeLead(logger);
+        finalWhiteMinusBlackScore = lead;
+        winner = lead > 0 ? P_WHITE : lead < 0 ? P_BLACK : C_EMPTY;
+      }
+
+      if(winner == C_EMPTY)
+        response = "0";
+      else if(winner == C_BLACK)
+        response = "B+" + Global::strprintf("%.1f",-finalWhiteMinusBlackScore);
+      else if(winner == C_WHITE)
+        response = "W+" + Global::strprintf("%.1f",finalWhiteMinusBlackScore);
+      else
+        ASSERT_UNREACHABLE;
+    }
+
+    else if(command == "final_status_list") {
+      int statusMode = 0;
+      if(pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected one argument for final_status_list but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        if(pieces[0] == "alive")
+          statusMode = 0;
+        else if(pieces[0] == "seki")
+          statusMode = 1;
+        else if(pieces[0] == "dead")
+          statusMode = 2;
+        else {
+          responseIsError = true;
+          response = "Argument to final_status_list must be 'alive' or 'seki' or 'dead'";
+          statusMode = 3;
+        }
+
+        if(statusMode < 3) {
+          vector<bool> isAlive = engine->computeAnticipatedStatusesWithOwnership(logger);
+          Board board = engine->bot->getRootBoard();
+          vector<Loc> locsToReport;
+
+          if(statusMode == 0) {
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                if(board.colors[loc] != C_EMPTY && isAlive[loc])
+                  locsToReport.push_back(loc);
+              }
+            }
+          }
+          if(statusMode == 2) {
+            for(int y = 0; y<board.y_size; y++) {
+              for(int x = 0; x<board.x_size; x++) {
+                Loc loc = Location::getLoc(x,y,board.x_size);
+                if(board.colors[loc] != C_EMPTY && !isAlive[loc])
+                  locsToReport.push_back(loc);
+              }
+            }
+          }
+
+          response = "";
+          for(int i = 0; i<locsToReport.size(); i++) {
+            Loc loc = locsToReport[i];
+            if(i > 0)
+              response += " ";
+            response += Location::toString(loc,board);
+          }
+        }
+      }
+    }
+
+    else if(command == "loadsgf") {
+      if(pieces.size() != 1 && pieces.size() != 2) {
+        responseIsError = true;
+        response = "Expected one or two arguments for loadsgf but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        string filename = pieces[0];
+        bool parseFailed = false;
+        bool moveNumberSpecified = false;
+        int moveNumber = 0;
+        if(pieces.size() == 2) {
+          bool suc = Global::tryStringToInt(pieces[1],moveNumber);
+          if(!suc || moveNumber < 0 || moveNumber > 10000000)
+            parseFailed = true;
+          else {
+            moveNumberSpecified = true;
+          }
+        }
+        if(parseFailed) {
+          responseIsError = true;
+          response = "Invalid value for moveNumber for loadsgf";
+        }
+        else {
+          Board sgfInitialBoard;
+          Player sgfInitialNextPla;
+          BoardHistory sgfInitialHist;
+          Rules sgfRules;
+          Board sgfBoard;
+          Player sgfNextPla;
+          BoardHistory sgfHist;
+
+          bool sgfParseSuccess = false;
+          CompactSgf* sgf = NULL;
+          try {
+            sgf = CompactSgf::loadFile(filename);
+
+            if(sgf->moves.size() > 0x3FFFFFFF)
+              throw StringError("Sgf has too many moves");
+            if(!moveNumberSpecified || moveNumber > sgf->moves.size())
+              moveNumber = (int)sgf->moves.size();
+
+            sgfRules = sgf->getRulesOrWarn(
+              engine->getCurrentRules(), //Use current rules as default
+              [&logger](const string& msg) { logger.write(msg); cerr << msg << endl; }
+            );
+            if(engine->nnEval != NULL) {
+              bool rulesWereSupported;
+              Rules supportedRules = engine->nnEval->getSupportedRules(sgfRules,rulesWereSupported);
+              if(!rulesWereSupported) {
+                ostringstream out;
+                out << "WARNING: Rules " << sgfRules.toJsonStringNoKomi()
+                    << " from sgf not supported by neural net, using " << supportedRules.toJsonStringNoKomi() << " instead";
+                logger.write(out.str());
+                if(!loggingToStderr)
+                  cerr << out.str() << endl;
+                sgfRules = supportedRules;
+              }
+            }
+
+            if(isForcingKomi)
+              sgfRules.komi = forcedKomi;
+
+            {
+              //See if the rules differ, IGNORING komi differences
+              Rules currentRules = engine->getCurrentRules();
+              currentRules.komi = sgfRules.komi;
+              if(sgfRules != currentRules) {
+                ostringstream out;
+                out << "Changing rules to " << sgfRules.toJsonStringNoKomi();
+                logger.write(out.str());
+                if(!loggingToStderr)
+                  cerr << out.str() << endl;
+              }
+            }
+
+            sgf->setupInitialBoardAndHist(sgfRules, sgfInitialBoard, sgfInitialNextPla, sgfInitialHist);
+            sgfInitialHist.setInitialTurnNumber(sgfInitialBoard.numStonesOnBoard()); //Should give more accurate temperaure and time control behavior
+            sgfBoard = sgfInitialBoard;
+            sgfNextPla = sgfInitialNextPla;
+            sgfHist = sgfInitialHist;
+            sgf->playMovesTolerant(sgfBoard,sgfNextPla,sgfHist,moveNumber,preventEncore);
+
+            delete sgf;
+            sgf = NULL;
+            sgfParseSuccess = true;
+          }
+          catch(const StringError& err) {
+            delete sgf;
+            sgf = NULL;
+            responseIsError = true;
+            response = "Could not load sgf: " + string(err.what());
+          }
+          catch(...) {
+            delete sgf;
+            sgf = NULL;
+            responseIsError = true;
+            response = "Cannot load file";
+          }
+
+          if(sgfParseSuccess) {
+            if(sgfRules.komi != engine->getCurrentRules().komi) {
+              ostringstream out;
+              out << "Changing komi to " << sgfRules.komi;
+              logger.write(out.str());
+              if(!loggingToStderr)
+                cerr << out.str() << endl;
+            }
+            engine->setPositionAndRules(sgfNextPla, sgfBoard, sgfHist, sgfInitialBoard, sgfInitialNextPla, sgfHist.moveHistory);
+          }
+        }
+      }
+    }
+
+    else if(command == "printsgf") {
+      if(pieces.size() != 0 && pieces.size() != 1) {
+        responseIsError = true;
+        response = "Expected zero or one argument for print but got '" + Global::concat(pieces," ") + "'";
+      }
+      else if(pieces.size() == 0 || pieces[0] == "-") {
+        ostringstream out;
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
+        response = out.str();
+      }
+      else {
+        ofstream out(pieces[0]);
+        WriteSgf::writeSgf(out,"","",engine->bot->getRootHist(),NULL,true,false);
+        out.close();
+        response = "";
+      }
+    }
+
+    else if(command == "analyze" || command == "lz-analyze" || command == "kata-analyze") {
+      Player pla = engine->bot->getRootPla();
+      bool parseFailed = false;
+      GTPEngine::AnalyzeArgs args = parseAnalyzeCommand(command, pieces, pla, parseFailed, engine);
+
+      if(parseFailed) {
+        responseIsError = true;
+        response = "Could not parse analyze arguments or arguments out of range: '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing
+        if(hasId)
+          cout << "=" << Global::intToString(id) << endl;
+        else
+          cout << "=" << endl;
+
+        engine->analyze(pla, args);
+
+        //No response - currentlyAnalyzing will make sure we get a newline at the appropriate time, when stopped.
+        suppressResponse = true;
+        currentlyAnalyzing = true;
+      }
+    }
+
+    else if(command == "kata-raw-nn") {
+      int whichSymmetry = NNInputs::SYMMETRY_ALL;
+      bool parsed = false;
+      if(pieces.size() == 1) {
+        string s = Global::trim(Global::toLower(pieces[0]));
+        if(s == "all")
+          parsed = true;
+        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= NNInputs::NUM_SYMMETRY_COMBINATIONS-1)
+          parsed = true;
+      }
+
+      if(!parsed) {
+        responseIsError = true;
+        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
+      }
+      else {
+        response = engine->rawNN(whichSymmetry);
+      }
+    }
+
+
+    else if(command == "cputime" || command == "gomill-cpu_time") {
+      response = Global::doubleToString(engine->genmoveTimeSum);
+    }
+
+    else if(command == "stop") {
+      //Stop any ongoing ponder or analysis
+      engine->stopAndWait();
+    }
 
     else {
       responseIsError = true;

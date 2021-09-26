@@ -11,6 +11,7 @@
 #include "../core/fancymath.h"
 #include "../core/timer.h"
 #include "../search/distributiontable.h"
+#include "../logutil.h"
 
 using namespace std;
 
@@ -706,6 +707,11 @@ void Search::runWholeSearch(
     &hasMaxTime,&hasTc,
     &logger,&shouldStopNow,maxVisits,maxPlayouts,maxTime,pondering,searchFactor
   ](int threadIdx) {
+    if (threadIdx > 0)
+      logThread("[+THREAD] search/searchLoop " + std::to_string(threadIdx));
+    else
+      logThread("non-thread search/searchLoop " + std::to_string(threadIdx));
+
     SearchThread* stbuf = new SearchThread(threadIdx,*this,&logger);
 
     int64_t numPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);

@@ -6,15 +6,16 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/desc.h"
+#include "../logutil.h"
 
 extern "C" {
-  extern int getBackend();
-  extern int setBackend(int);
-  extern int downloadMetadata(int);
-  extern int downloadModel(int);
-  extern void removeModel();
-  extern int predict(int, int, int, int, int, int, int, int, int, int);
-  extern int jsGetModelVersion();
+  extern int  js_getBackend();
+  extern int  js_setBackend(int);
+  extern int  js_downloadMetadata(int);
+  extern int  js_downloadModel(int);
+  extern void js_removeModel();
+  extern int  js_predict(int, int, int, int, int, int, int, int, int, int);
+  extern int  js_getModelVersion();
 }
 
 using namespace std;
@@ -63,13 +64,12 @@ struct LoadedModel {
        So you need to load the tfjs model in NNEvaluator thread.
     */
     name = fileName;
-    cout << std::this_thread::get_id() << " [CERR] tfjs/downloadMetadata" << endl;
-    int metaStatus = downloadMetadata((int)name.c_str());
-    cout << std::this_thread::get_id() << " [CERR] tfjs/downloadMetadata DONE" << metaStatus << endl;
-
+    logThread("tfjs/js_downloadMetadata");
+    int metaStatus = js_downloadMetadata((int)name.c_str());
+    logThread("tfjs/js_downloadMetadata DONE" + std::to_string(metaStatus));
 
     if (metaStatus == 1) {
-      modelDesc.version = jsGetModelVersion();
+      modelDesc.version = js_getModelVersion();
       if (modelDesc.version >= 9) {
         modelDesc.numInputChannels = 22;
         modelDesc.numInputGlobalChannels = 19;
@@ -229,7 +229,7 @@ LoadedModel* NeuralNet::loadModelFile(const string& file, const std::string& exp
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
-  removeModel();
+  js_removeModel();
 }
 
 string NeuralNet::getModelName(const LoadedModel* loadedModel) {
@@ -237,7 +237,7 @@ string NeuralNet::getModelName(const LoadedModel* loadedModel) {
 }
 
 int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return jsGetModelVersion();
+  return js_getModelVersion();
 }
 
 Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
@@ -259,12 +259,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)inputsUseNHWC;
   (void)gpuIdxForThisThread;
   (void)serverThreadIdx;
-  if (setBackend(context->backend) == 1) {
+  if (js_setBackend(context->backend) == 1) {
     logger->write("backend was initialized");
   } else {
     logger->write("backend initialization failed");
   }
-  auto backend = getBackend();
+  auto backend = js_getBackend();
   switch (backend) {
     case 1:
     logger->write("backend: cpu");
@@ -278,7 +278,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
     default:
     logger->write("backend: unkown");
   }
-  if (downloadModel((int)loadedModel->name.c_str()) == 1) {
+  if (js_downloadModel((int)loadedModel->name.c_str()) == 1) {
     return new ComputeHandle(loadedModel, context->nnXLen, context->nnYLen);
   } else {
     logger->write("Failed downloadModel");
@@ -354,7 +354,7 @@ void NeuralNet::getOutput(
   }
 
   clock_t start = clock();
-  if(predict(
+  if(js_predict(
     batchSize,
     (int)inputBuffers->userInputBuffer,
     nnXLen * nnYLen,

@@ -1,10 +1,12 @@
 #include "../search/asyncbot.h"
-
 #include "../core/timer.h"
+#include "../logutil.h"
 
 using namespace std;
 
 static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
+  logThread("[+THREAD] asyncbot/searchThreadLoop");
+
   try {
     asyncBot->internalSearchThreadLoop();
   }
@@ -26,6 +28,7 @@ AsyncBot::AsyncBot(SearchParams params, NNEvaluator* nnEval, Logger* l, const st
    queuedSearchId(0),queuedOnMove(),timeControls(),searchFactor(1.0),
    analyzeCallbackPeriod(-1),analyzeCallback(),searchBegunCallback()
 {
+  logThread("asyncbot/AsyncBot");
   search = new Search(params,nnEval,randSeed);
   searchThread = std::thread(searchThreadLoop,this,l);
 }

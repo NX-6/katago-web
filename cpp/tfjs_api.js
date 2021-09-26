@@ -3,20 +3,20 @@ mergeInto(LibraryManager.library, {
     $method_support__postset: 'method_support();',
     $method_support: function() {
         const inst = new GraphModelWrapper();
-        _getBackend = inst.getBackend.bind(inst);
-        _setBackend = inst.setBackend.bind(inst);
-        _downloadMetadata = inst.downloadMetadata.bind(inst);
-        _downloadModel = inst.downloadModel.bind(inst);
-        _removeModel = inst.removeModel.bind(inst);
-        _predict = inst.predict.bind(inst);
-        _jsGetModelVersion = inst.getModelVersion.bind(inst);
+        _js_getBackend = inst.js_getBackend.bind(inst);
+        _js_setBackend = inst.js_setBackend.bind(inst);
+        _js_downloadMetadata = inst.js_downloadMetadata.bind(inst);
+        _js_downloadModel = inst.js_downloadModel.bind(inst);
+        _js_removeModel = inst.js_removeModel.bind(inst);
+        _js_predict = inst.js_predict.bind(inst);
+        _js_getModelVersion = inst.js_getModelVersion.bind(inst);
     },
 
     // $stdio_support__postset: 'stdio_support();',
     // $stdio_support: function() {
     //     if (!Module['ENVIRONMENT_IS_PTHREAD']) {
-    //        _waitForStdin = function() {
-    //           console.log("_waitForStdin");
+    //        _js_awaitStdinAsync = function() {
+    //           console.log("_awaitStdinAsync");
     //             return Asyncify.handleSleep(wakeUp => {
     //                 Module["awaitStdin"]().then(_ => wakeUp());
     //             });
@@ -24,24 +24,31 @@ mergeInto(LibraryManager.library, {
     //     }
     // },
 
-    notifyStatus: function(status) { console.log("notifyStatus", status); Module["onstatus"](status); },
-    waitForStdin: function() { return waitForStdin(); },
+    js_notifyStatus: function(status) {
+      console.log("notifyStatus", status);
+      Module["onstatus"](status);
+    },
+
+    js_awaitStdinAsync: function() {
+      console.log("js_awaitStdinAsync", Module['ENVIRONMENT_IS_PTHREAD']);
+      return pre_awaitStdinAsync();
+    },
 
     // dummy functions
-    // waitForStdin__deps: ['$stdio_support'],
-    // waitForStdin: function() { console.error("waitForStdin. should not reach"); },
-    getBackend__deps: ['$method_support'],
-    getBackend: function() { console.error("getBackend. should not reach"); },
-    setBackend__deps: ['$method_support'],
-    setBackend: function() { console.error("setBackend. should not reach"); },
-    downloadMetadata__deps: ['$method_support'],
-    downloadMetadata: function() { console.error("downloadMetadata. should not reach"); },
-    downloadModel__deps: ['$method_support'],
-    downloadModel: function() { console.error("downloadModel. should not reach"); },
-    removeModel__deps: ['$method_support'],
-    removeModel: function() { console.error("removeModel. should not reach"); },
-    predict__deps: ['$method_support'],
-    predict: function() { console.error("predict. should not reach"); },
-    jsGetModelVersion__deps: ['$method_support'],
-    jsGetModelVersion: function() { console.error("jsGetModelVersion. should not reach"); },
+    // js_awaitStdinAsync__deps: ['$stdio_support'],
+    // js_awaitStdinAsync: function() { console.error("awaitStdinAsync. should not reach"); },
+    js_getBackend__deps: ['$method_support'],
+    js_getBackend: function() { console.error("js_getBackend. should not reach"); },
+    js_setBackend__deps: ['$method_support'],
+    js_setBackend: function() { console.error("js_setBackend. should not reach"); },
+    js_downloadMetadata__deps: ['$method_support'],
+    js_downloadMetadata: function() { console.error("js_downloadMetadata. should not reach"); },
+    js_downloadModel__deps: ['$method_support'],
+    js_downloadModel: function() { console.error("js_downloadModel. should not reach"); },
+    js_removeModel__deps: ['$method_support'],
+    js_removeModel: function() { console.error("js_removeModel. should not reach"); },
+    js_predict__deps: ['$method_support'],
+    js_predict: function() { console.error("js_predict. should not reach"); },
+    js_getModelVersion__deps: ['$method_support'],
+    js_getModelVersion: function() { console.error("js_getModelVersion. should not reach"); },
 });
