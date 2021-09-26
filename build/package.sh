@@ -9,6 +9,8 @@ mv build/em_build/* build/public/
 mkdir -p            build/public/libs/@tensorflow
 cd                  build/public/libs/@tensorflow
 
+
+# most recent: 3.9.0
 TF_VER=3.0.0
 
 curl -o TF -L https://registry.npmjs.org/@tensorflow/tfjs/-/tfjs-${TF_VER}.tgz

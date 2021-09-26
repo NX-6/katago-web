@@ -259,26 +259,30 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)inputsUseNHWC;
   (void)gpuIdxForThisThread;
   (void)serverThreadIdx;
-  if (js_setBackend(context->backend) == 1) {
+
+  logThread("tfjs/js_setBackend");
+  int backendStatus = js_setBackend(context->backend);
+  logThread("tfjs/js_setBackend RETURNED " + std::to_string(backendStatus));
+
+  if (backendStatus == 1)
     logger->write("backend was initialized");
-  } else {
+  else
     logger->write("backend initialization failed");
-  }
+
   auto backend = js_getBackend();
+
   switch (backend) {
-    case 1:
-    logger->write("backend: cpu");
-    break;
-    case 2:
-    logger->write("backend: webgl");
-    break;
-    case 3:
-    logger->write("backend: wasm");
-    break;
-    default:
-    logger->write("backend: unkown");
+    case 1:  logger->write("backend: cpu"); break;
+    case 2:  logger->write("backend: webgl"); break;
+    case 3:  logger->write("backend: wasm"); break;
+    default: logger->write("backend: unknown");
   }
-  if (js_downloadModel((int)loadedModel->name.c_str()) == 1) {
+
+  logThread("tfjs/js_downloadModel");
+  int modelStatus = js_downloadModel((int)loadedModel->name.c_str());
+  logThread("tfjs/js_downloadModel RETURNED " + std::to_string(modelStatus));
+
+  if (modelStatus == 1) {
     return new ComputeHandle(loadedModel, context->nnXLen, context->nnYLen);
   } else {
     logger->write("Failed downloadModel");

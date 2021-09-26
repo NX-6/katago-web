@@ -103,14 +103,15 @@ GraphModelWrapper.prototype.js_getBackend = function() {
     return 0;
 }
 
-GraphModelWrapper.prototype.js_setBackend = function(backend) {
-    var be;
-    switch (backend) {
-        case this.AUTO:  be = (typeof OffscreenCanvas !== 'undefined')
+GraphModelWrapper.prototype.js_setBackend = function(backendCode) {
+    console.log("js_setBackend", backendCode);
+    var backendName;
+    switch (backendCode) {
+        case this.AUTO:  backendName = (typeof OffscreenCanvas !== 'undefined')
                             ? "webgl" : "wasm"; break;
-        case this.CPU:   be = "cpu"; break;
-        case this.WEBGL: be = "webgl"; break;
-        case this.WASM:  be = "wasm"; break;
+        case this.CPU:   backendName = "cpu"; break;
+        case this.WEBGL: backendName = "webgl"; break;
+        case this.WASM:  backendName = "wasm"; break;
         default: return;
     }
     // return Asyncify.handleSleep(wakeUp => {
@@ -118,9 +119,9 @@ GraphModelWrapper.prototype.js_setBackend = function(backend) {
     //         console.log("setBackend", be, s);
     //         if (s) {
     //             wakeUp(1);
-    //         } else if (backend === this.AUTO && be === "webgl") {
+    //         } else if (backendCode === this.AUTO && be === "webgl") {
     //             // OffscreenCanvasが存在してもsetBackendが失敗するケースがあるのでwasmにフォールバックさせる
-    //             console.warn("backend " + be + " failed, trying wasm...");
+    //             console.warn("backendCode " + be + " failed, trying wasm...");
     //             tf.setBackend("wasm").then(s => { wakeUp(s ? 1 : 0); });
     //         } else {
     //             wakeUp(0);
@@ -128,19 +129,53 @@ GraphModelWrapper.prototype.js_setBackend = function(backend) {
     //     });
     // });
 
-    // NOTE: tf not defined
-    // tf.setBackend(be).then(s => {
-    //     console.log("setBackend", be, s);
-    //     if (s) {
-    //         // wakeUp(1);
-    //     } else if (backend === this.AUTO && be === "webgl") {
-    //         // OffscreenCanvasが存在してもsetBackendが失敗するケースがあるのでwasmにフォールバックさせる
-    //         console.warn("backend " + be + " failed, trying wasm...");
-    //         tf.setBackend("wasm").then(s => { });
-    //     } else {
-    //         // wakeUp(0);
-    //     }
-    // });
+    if (Module['ENVIRONMENT_IS_PTHREAD']) {
+        console.log("loading tfjs...");
+        const tf_ver = "3.0.0"
+        importScripts(
+          `libs/@tensorflow/tfjs@${tf_ver}/dist/tf.min.js`,
+          `libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/tf-backend-wasm.min.js`
+        );
+        tf.wasm.setWasmPaths(`libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/`);
+
+        console.log("tf", tf);
+
+        // https://github.com/tensorflow/tfjs/issues/102
+        // needs linker-flag? `-s OFFSCREENCANVAS_SUPPORT=1`
+        if (typeof OffscreenCanvas !== 'undefined') {
+            console.log("offscreen canvas available");
+            self.document = {
+                createElement: function() { return new OffscreenCanvas(640, 480); }
+            };
+            // causes 'RuntimeError: abort(Assertion failed: emscripten_is_main_runtime_thread()'
+            // self.window = self;
+            // self.screen = { width: 640, height: 480 };
+
+            self.HTMLVideoElement = function() {};
+            self.HTMLImageElement = function() {};
+            self.HTMLCanvasElement = OffscreenCanvas;
+        } else {
+            console.error("no offscreen canvas");
+        }
+
+        // https://js.tensorflow.org/api/latest/#setBackend
+        let tf_promise = tf.setBackend(backendName);
+        console.log("tf.setBackend", backendName, tf_promise);
+        tf_promise.then(s => {
+            // somehow never invoked (regardless of eventual fulfilled status)
+            // maybe because caller doesn't currently wait and promise is GC'ed?
+            console.log("tf.setBackend", backendName, s);
+            if (!s && backendCode === this.AUTO && backendName === "webgl") {
+                // OffscreenCanvasが存在してもsetBackendが失敗するケースがあるのでwasmにフォールバックさせる
+                console.warn("tf.setBackend", backendName, "failed, trying wasm...");
+                tf.setBackend("wasm").then(s => {
+                  console.log("setBackend wasm", s ? "successful" : "failed")
+                });
+            }
+        }).catch(err => {
+          console.error("tf.setBackend failed with:", err);
+        });
+    }
 
     return 1;
 };
@@ -168,10 +203,15 @@ GraphModelWrapper.prototype.js_downloadModel = function(charp) {
     //       .catch(err => { console.error(err); wakeUp(0); });
     // });
 
-    // const model = UTF8ToString(charp);
-    // tf.loadGraphModel(model + "/model.json")
-    //   .then(model => { this.model = model; })
-    //   .catch(err => { console.error(err); });
+    const model = UTF8ToString(charp);
+    const tf_promise = tf.loadGraphModel(model + "/model.json")
+    console.log("js_downloadModel", model, tf_promise);
+    tf_promise.then(model => {
+      this.model = model;
+      console.log("tf.loadGraphModel", model);
+    })
+    .catch(err => { console.error(err); });
+
     return 1;
 };
 
@@ -226,27 +266,3 @@ GraphModelWrapper.prototype.js_predict = function(
 GraphModelWrapper.prototype.js_getModelVersion = function() {
     return this.version;
 };
-
-// if (Module['ENVIRONMENT_IS_PTHREAD']) {
-//     const tf_ver = "3.0.0"
-//     importScripts(
-//       `libs/@tensorflow/tfjs@${tf_ver}/dist/tf.min.js`,
-//       `libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/tf-backend-wasm.min.js`
-//     );
-//     tf.wasm.setWasmPaths(`libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/`);
-//
-//     // https://github.com/tensorflow/tfjs/issues/102
-//     if (typeof OffscreenCanvas !== 'undefined') {
-//         self.document = {
-//             createElement: function() { return new OffscreenCanvas(640, 480); }
-//         };
-//         // self.window = self;
-//         // self.screen = { width: 640, height: 480 };
-//
-//         self.HTMLVideoElement = function() {};
-//         self.HTMLImageElement = function() {};
-//         self.HTMLCanvasElement = OffscreenCanvas;
-//     } else {
-//         console.error("no offscreen canvas");
-//     }
-// }
