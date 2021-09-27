@@ -139,7 +139,7 @@ if (!crossOriginIsolated) {
 
   let kataGoInstance;
 
-  dispatchMessage = msg => kataGoInstance.postMessage(msg);
+  dispatchMessage = msg => kataGoInstance.postCommand(msg);
   loadsgf = sgfFile => {
     fetch("sgf_files/" + sgfFile).then(res => res.text())
     .then(sgfText => {

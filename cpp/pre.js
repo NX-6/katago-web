@@ -21,6 +21,10 @@ Module["postMessage"] = function(cmdStr) {
     console.warn('not awaiting stdin');
 };
 
+Module["postCommand"] = function(cmdStr) {
+  Module.ccall("enqueueCmd", "void", ["string"], [cmdStr + "\n"]);
+}
+
 function readChar() {
   if (!ioState.bufferIn) return null;
 

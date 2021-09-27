@@ -12,17 +12,25 @@
 #include "../main.h"
 #include "../logutil.h"
 
+
 #if defined(__EMSCRIPTEN__)
+#include <queue>
 #include <emscripten.h>
 
 extern "C" {
   extern void js_notifyStatus(int);
-  extern int  js_pollStdin();
-  // extern void read_loop_one_void(Logger& logger);
+  void enqueueCmd(char* arg);
 }
 #endif
 
 using namespace std;
+
+std::queue<string> cmdQueue;
+
+void EMSCRIPTEN_KEEPALIVE enqueueCmd(char* arg) {
+  cmdQueue.push(arg);
+  logThread("cmdQueue: " + std::to_string(cmdQueue.size()));
+}
 
 static const vector<string> knownCommands = {
   //Basic GTP commands
@@ -1430,7 +1438,12 @@ string line;
 
 int line_loop_one(Logger& logger) {
 
-  getline(cin,line);
+  #if defined(__EMSCRIPTEN__)
+    line = cmdQueue.front();
+    cmdQueue.pop();
+  #else
+    getline(cin,line);
+  #endif
 
   //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
   string command;
@@ -2700,13 +2713,15 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //   emscripten_sleep(100);
   // }
   // notifyStatus(engine->nnEval->status == 2 ? 1 : -1);
-  js_notifyStatus(1);
+  // js_notifyStatus(1);
   #endif
 
   currentlyAnalyzing = false;
 
   while(cin) {
-    if (!js_pollStdin()) {
+    logThread("while:" + std::to_string(cmdQueue.size()));
+
+    if (cmdQueue.size() < 1) {
       logThread("gtp/emscripten_sleep");
       emscripten_sleep(2000);
       continue;

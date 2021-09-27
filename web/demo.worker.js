@@ -21,7 +21,7 @@ self.addEventListener("message", ev => {
       break;
 
     case "message":
-      kataGoInstance.postMessage(msg.text);
+      kataGoInstance.postCommand(msg.text);
       break;
 
     case "preload":

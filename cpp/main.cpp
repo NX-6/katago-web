@@ -13,6 +13,8 @@
 #include <sstream>
 #include <emscripten.h>
 
+#include "../logutil.h"
+
 using namespace std;
 
 static void printHelp(int argc, const char* argv[]) {
