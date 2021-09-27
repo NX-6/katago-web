@@ -67,7 +67,7 @@ const backend = {
 if (Module['ENVIRONMENT_IS_PTHREAD']) {
 
     console.log("loading tfjs...");
-    const tf_ver = "3.0.0"
+    const tf_ver = "3.9.0"
     importScripts(
       `libs/@tensorflow/tfjs@${tf_ver}/dist/tf.min.js`,
       `libs/@tensorflow/tfjs-backend-wasm@${tf_ver}/dist/tf-backend-wasm.min.js`
@@ -333,6 +333,7 @@ GraphModelWrapper.prototype.js_predict = function(
           "swa_model/bin_inputs": tf.tensor(bin_inputs, [batches, boardWxH, inputBufferChannels], 'float32'),
           "swa_model/global_inputs": tf.tensor(global_inputs, [batches, inputGlobalBufferChannels], 'float32'),
       }).then(results => {
+        console.log("TF RESULTS", results);
         var i;
         const miscvaluesSize = this.version === 8 ? 10 : 6;
         for (i = 0; i < results.length; i++) {

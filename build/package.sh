@@ -10,8 +10,7 @@ mkdir -p            build/public/libs/@tensorflow
 cd                  build/public/libs/@tensorflow
 
 
-# most recent: 3.9.0
-TF_VER=3.0.0
+TF_VER=3.9.0
 
 curl -o TF -L https://registry.npmjs.org/@tensorflow/tfjs/-/tfjs-${TF_VER}.tgz
 tar -xf TF package/dist/tf.min.js
