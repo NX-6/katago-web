@@ -6,7 +6,7 @@
 ## high CPU load even after init
 # FROM emscripten/emsdk:2.0.{5, 15, 20, 25}
 
-FROM emscripten/emsdk:2.0.4
+FROM emscripten/emsdk:2.0.30
 
 WORKDIR /
 COPY /cpp         /cpp

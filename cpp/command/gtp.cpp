@@ -1395,6 +1395,13 @@ EM_JS(void, awaitStdinAsync2, (), {
 
 
 int MainCmds::gtp(int argc, const char* const* argv) {
+
+  // std::thread* thread = new std::thread(
+  //   []{
+  //     awaitAsync();
+  //   }
+  // );
+
   Board::initHash();
   ScoreValue::initTables();
   Rand seedRand;
