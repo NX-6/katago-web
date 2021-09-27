@@ -9,16 +9,8 @@ let ioState = {
   crFlag: false
 }
 
-if (!Module['ENVIRONMENT_IS_PTHREAD']) {
-   function pre_awaitStdinAsync() {
-      return Asyncify.handleSleep(function(wakeUp) {
-          console.log("pre_awaitStdinAsync", ioState.bufferOut);
-          Module["awaitStdin"]().then(_ => {
-            console.log("pre_awaitStdinAsync/resolve", ioState.bufferOut);
-            wakeUp();
-          });
-      });
-    };
+function pre_pollStdin() {
+  return ioState.bufferIn ? 1 : 0;
 }
 
 Module["postMessage"] = function(cmdStr) {
@@ -28,10 +20,6 @@ Module["postMessage"] = function(cmdStr) {
   else
     console.warn('not awaiting stdin');
 };
-
-Module["awaitStdin"] = function() {
-  return new Promise((res, rej) => { ioState.resolveP = res; ioState.rejectP = rej; });
-}
 
 function readChar() {
   if (!ioState.bufferIn) return null;

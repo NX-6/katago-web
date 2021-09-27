@@ -17,7 +17,8 @@
 
 extern "C" {
   extern void js_notifyStatus(int);
-  extern void js_awaitStdinAsync();
+  extern int  js_pollStdin();
+  // extern void read_loop_one_void(Logger& logger);
 }
 #endif
 
@@ -1381,21 +1382,6 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   return args;
 }
 
-EM_JS(void, awaitStdinAsync2, (), {
-  return Asyncify.handleAsync(function () {
-    console.log("waiting with promise...");
-    return new Promise((res, rej) => {
-      setTimeout(function(){
-        console.log("wake up!!");
-        res();
-      }, 1000);
-    });
-  });
-});
-
-
-
-
 
 
 Rand seedRand;
@@ -1437,10 +1423,14 @@ double genmoveAntiMirror;
 float forcedKomi;
 bool isForcingKomi;
 
+string line;
 
 
 
-int read_loop_one(Logger& logger, string& line) {
+
+int line_loop_one(Logger& logger) {
+
+  getline(cin,line);
 
   //Parse command, extracting out the command itself, the arguments, and any GTP id number for the command.
   string command;
@@ -2524,6 +2514,10 @@ int read_loop_one(Logger& logger, string& line) {
 }
 
 
+// void read_loop_one_void(void* arg) {
+//   int status = read_loop_one((Logger&) arg);
+// }
+
 
 int MainCmds::gtp(int argc, const char* const* argv) {
 
@@ -2685,21 +2679,20 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   logThread("gtp/still alive 2");
 
-  // NOTE: something breaks worker
-  // logger.write("Loaded config " + cfg.getFileName());
-  // logger.write("Loaded model "+ nnModelFile);
-  // cerr << "still alive 3 " << endl;
-  // logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
-  // cerr << "still alive 4 " << endl;
-  // logger.write("GTP ready, beginning main protocol loop");
-  // //Also check loggingToStderr so that we don't duplicate the message from the log file
-  //
-  // if(startupPrintMessageToStderr && !loggingToStderr) {
-  //   cerr << "Loaded config " << cfg.getFileName() << endl;
-  //   cerr << "Loaded model " << nnModelFile << endl;
-  //   cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
-  //   cerr << "GTP ready, beginning main protocol loop" << endl;
-  // }
+  logger.write("Loaded config " + cfg.getFileName());
+  logger.write("Loaded model "+ nnModelFile);
+  cerr << "still alive 3 " << endl;
+  logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
+  cerr << "still alive 4 " << endl;
+  logger.write("GTP ready, beginning main protocol loop");
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Loaded config " << cfg.getFileName() << endl;
+    cerr << "Loaded model " << nnModelFile << endl;
+    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
+    cerr << "GTP ready, beginning main protocol loop" << endl;
+  }
 
   logThread("gtp/notifyStatus");
   #if defined(__EMSCRIPTEN__)
@@ -2712,19 +2705,19 @@ int MainCmds::gtp(int argc, const char* const* argv) {
 
   currentlyAnalyzing = false;
 
-
-  string line;
-
   while(cin) {
-    #if defined(__EMSCRIPTEN__)
-      logThread("gtp/awaitStdinAsync");
-      js_awaitStdinAsync();
-    #endif
-    getline(cin,line);
-    int status = read_loop_one(logger, line);
+    if (!js_pollStdin()) {
+      logThread("gtp/emscripten_sleep");
+      emscripten_sleep(2000);
+      continue;
+    }
+
+    int status = line_loop_one(logger);
     if (status == 1)
       break;
   }
+
+  // emscripten_set_main_loop_arg((em_arg_callback_func)read_loop_one_void, &logger, 1, 0);
 
   delete engine;
   engine = NULL;

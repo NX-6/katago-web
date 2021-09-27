@@ -12,31 +12,16 @@ mergeInto(LibraryManager.library, {
         _js_getModelVersion = inst.js_getModelVersion.bind(inst);
     },
 
-    // $stdio_support__postset: 'stdio_support();',
-    // $stdio_support: function() {
-    //     if (!Module['ENVIRONMENT_IS_PTHREAD']) {
-    //        _js_awaitStdinAsync = function() {
-    //           console.log("_awaitStdinAsync");
-    //             return Asyncify.handleSleep(wakeUp => {
-    //                 Module["awaitStdin"]().then(_ => wakeUp());
-    //             });
-    //         };
-    //     }
-    // },
-
     js_notifyStatus: function(status) {
       console.log("notifyStatus", status);
       Module["onstatus"](status);
     },
 
-    js_awaitStdinAsync: function() {
-      console.log("js_awaitStdinAsync", Module['ENVIRONMENT_IS_PTHREAD']);
-      return pre_awaitStdinAsync();
+    js_pollStdin: function() {
+      return pre_pollStdin();
     },
 
     // dummy functions
-    // js_awaitStdinAsync__deps: ['$stdio_support'],
-    // js_awaitStdinAsync: function() { console.error("awaitStdinAsync. should not reach"); },
     js_getBackend__deps: ['$method_support'],
     js_getBackend: function() { console.error("js_getBackend. should not reach"); },
     js_setBackend__deps: ['$method_support'],
