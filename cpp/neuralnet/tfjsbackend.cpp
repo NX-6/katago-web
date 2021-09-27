@@ -358,7 +358,12 @@ void NeuralNet::getOutput(
   }
 
   clock_t start = clock();
-  if(js_predict(
+
+  // in worker, logging here prevents js_predict to be called
+  // emscripten probably tries to forward stdout but finds main runtime thread blocked
+  // logThread("js_predict");
+
+  int predictStatus = js_predict(
     batchSize,
     (int)inputBuffers->userInputBuffer,
     nnXLen * nnYLen,
@@ -369,12 +374,14 @@ void NeuralNet::getOutput(
     (int)inputBuffers->scoreValueResults,
     (int)inputBuffers->ownershipResults,
     (int)inputBuffers->policyResults
-  ) != 1) {
-    cerr << "predict error " << endl;
-  }
-  cerr << "predict time(ms): " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC * 1000.0 << endl;
-  assert(!isnan(inputBuffers->valueResults[0]));
+  );
 
+  if(predictStatus != 1)
+    cerr << "predict error " << endl;
+
+  cerr << "predict time(ms): " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC * 1000.0 << endl;
+
+  assert(!isnan(inputBuffers->valueResults[0]));
   assert(outputs.size() == batchSize);
 
   for(int row = 0; row < batchSize; row++) {
