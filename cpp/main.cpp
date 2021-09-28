@@ -171,6 +171,8 @@ int main(int argc, const char* argv[]) {
     cout << "Uncaught exception that is not a std::exception... exiting due to unknown error" << endl;
     return 1;
   }
+
+  logThread("main DONE");
   return result;
 #else
 

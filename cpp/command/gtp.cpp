@@ -16,6 +16,7 @@
 #if defined(__EMSCRIPTEN__)
 #include <queue>
 #include <emscripten.h>
+#include <emscripten/threading.h>
 
 extern "C" {
   extern void js_notifyStatus(int);
@@ -27,10 +28,32 @@ using namespace std;
 
 std::queue<string> cmdQueue;
 
+
+// @main-loop's pthread
+// EM_ASYNC_JS(void, js_awaitCmdAsync, (), {
+//   await new Promise((res, rej) => Module.cmdRes = res);
+// });
+
+// @mainRuntimeThread (the proxy)
+// EM_JS(void, js_cmdReceived, (), {
+//   Module.cmdRes();
+// });
+
+EM_JS(void, js_test, (), {
+  console.log("js_test", Module.PThread.mainRuntimeThread, Module);
+});
+
+
+// @mainRuntimeThread (the proxy)
 void EMSCRIPTEN_KEEPALIVE enqueueCmd(char* arg) {
   cmdQueue.push(arg);
-  logThread("cmdQueue: " + std::to_string(cmdQueue.size()));
+  // js_cmdReceived();
+  // emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_V, js_cmdReceived);
 }
+
+
+
+Logger logger;
 
 static const vector<string> knownCommands = {
   //Basic GTP commands
@@ -1436,7 +1459,8 @@ string line;
 
 
 
-int line_loop_one(Logger& logger) {
+
+int line_loop_one() {
 
   #if defined(__EMSCRIPTEN__)
     line = cmdQueue.front();
@@ -2350,7 +2374,7 @@ int line_loop_one(Logger& logger) {
 
           sgfRules = sgf->getRulesOrWarn(
             engine->getCurrentRules(), //Use current rules as default
-            [&logger](const string& msg) { logger.write(msg); cerr << msg << endl; }
+            [](const string& msg) { logger.write(msg); cerr << msg << endl; }
           );
           if(engine->nnEval != NULL) {
             bool rulesWereSupported;
@@ -2527,9 +2551,6 @@ int line_loop_one(Logger& logger) {
 }
 
 
-// void read_loop_one_void(void* arg) {
-//   int status = read_loop_one((Logger&) arg);
-// }
 
 
 int MainCmds::gtp(int argc, const char* const* argv) {
@@ -2558,7 +2579,8 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   }
 
 
-  Logger logger;
+  // Logger logger;
+
   if(cfg.contains("logFile") && cfg.contains("logDir"))
     throw StringError("Cannot specify both logFile and logDir in config");
   else if(cfg.contains("logFile"))
@@ -2713,26 +2735,26 @@ int MainCmds::gtp(int argc, const char* const* argv) {
   //   emscripten_sleep(100);
   // }
   // notifyStatus(engine->nnEval->status == 2 ? 1 : -1);
-  // js_notifyStatus(1);
+
+  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, 1);
   #endif
 
   currentlyAnalyzing = false;
 
   while(cin) {
-    logThread("while:" + std::to_string(cmdQueue.size()));
+    // logThread("while:" + std::to_string(cmdQueue.size()));
 
     if (cmdQueue.size() < 1) {
-      logThread("gtp/emscripten_sleep");
-      emscripten_sleep(2000);
+      // js_awaitCmdAsync();
+      // emscripten_pause_main_loop()
+      emscripten_sleep(1000);
       continue;
     }
 
-    int status = line_loop_one(logger);
+    int status = line_loop_one();
     if (status == 1)
       break;
   }
-
-  // emscripten_set_main_loop_arg((em_arg_callback_func)read_loop_one_void, &logger, 1, 0);
 
   delete engine;
   engine = NULL;

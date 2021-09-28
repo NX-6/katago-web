@@ -320,12 +320,11 @@ GraphModelWrapper.prototype.js_predict = function(
       const bin_inputs = new Float32Array(Module.HEAPF32.buffer, inputBuffer, batches * boardWxH * inputBufferChannels);
       const global_inputs = new Float32Array(Module.HEAPF32.buffer, inputGlobalBuffer, batches * inputGlobalBufferChannels);
       const start = Date.now();
-      console.log("MODEL", Module["model"]);
+      // console.log("MODEL", Module["model"]);
       Module["model"].executeAsync({
           "swa_model/bin_inputs": tf.tensor(bin_inputs, [batches, boardWxH, inputBufferChannels], 'float32'),
           "swa_model/global_inputs": tf.tensor(global_inputs, [batches, inputGlobalBufferChannels], 'float32'),
       }).then(results => {
-        console.log("TF RESULTS", results);
         var i;
         const miscvaluesSize = this.version === 8 ? 10 : 6;
         for (i = 0; i < results.length; i++) {

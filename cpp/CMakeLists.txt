@@ -485,7 +485,7 @@ if(USE_BACKEND STREQUAL "TFJS")
     set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 
     # set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s ASYNCIFY_IMPORTS=emscripten_sleep,js_setBackend,js_downloadMetadata,js_awaitStdinAsync,js_predict")
-    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s ASYNCIFY_IMPORTS='emscripten_sleep, js_awaitAsync, js_predict'")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s ASYNCIFY_IMPORTS='js_awaitCmdAsync, js_predict'")
 
     ## needed to prevent 'unreachable' error
     set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY_STACK_SIZE=10000")
