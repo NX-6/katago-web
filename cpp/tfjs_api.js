@@ -12,15 +12,6 @@ mergeInto(LibraryManager.library, {
         _js_getModelVersion = inst.js_getModelVersion.bind(inst);
     },
 
-    js_notifyStatus: function(status) {
-      console.log("notifyStatus", status);
-      Module["onstatus"](status);
-    },
-
-    js_pollStdin: function() {
-      return pre_pollStdin();
-    },
-
     // dummy functions
     js_getBackend__deps: ['$method_support'],
     js_getBackend: function() { console.error("js_getBackend. should not reach"); },

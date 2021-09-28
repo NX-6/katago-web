@@ -1,41 +1,26 @@
 if (!("preRun" in Module))
   Module["preRun"] = [];
 
-let ioState = {
-  bufferIn: "",
-  bufferOut: "",
-  resolveP: null,
-  rejectP: null,
-  crFlag: false
-}
+Module["preRun"].push(function() {
+  FS.init(null, writeChar, writeChar);
 
-function pre_pollStdin() {
-  return ioState.bufferIn ? 1 : 0;
-}
+  if (Module["cfgFile"])
+    FS.createPreloadedFile(FS.cwd(), Module["cfgFile"], Module["cfgFile"], true, false);
+});
 
-Module["postMessage"] = function(cmdStr) {
-  ioState.bufferIn += cmdStr;
-  if (ioState.resolveP)
-    ioState.resolveP();
-  else
-    console.warn('not awaiting stdin');
-};
+// Module["onRuntimeInitialized"] = function() {
+// }
+
+let ioState = { bufferOut: "", crFlag: false }
+
+console.log("running_pre:", Module.PThread.mainRuntimeThread, Module.PThread);
 
 Module["postCommand"] = function(cmdStr) {
   Module.ccall("enqueueCmd", "void", ["string"], [cmdStr + "\n"]);
 }
 
-function readChar() {
-  if (!ioState.bufferIn) return null;
-
-  const c = ioState.bufferIn[0];
-  ioState.bufferIn = ioState.bufferIn.substr(1);
-  return c.charCodeAt(0);
-}
-
 function writeChar(char) {
   if (char === 0 || char === 0x0a) {
-    // if (bufferOut.length < 1000)
     Module["onmessage"](ioState.bufferOut);
 
     ioState.crFlag = false;
@@ -49,12 +34,7 @@ function writeChar(char) {
   ioState.bufferOut += String.fromCharCode(char);
 }
 
-const backend = {
-  AUTO: 0,
-  CPU: 1,
-  WEBGL: 2,
-  WASM: 3
-};
+const backend = { AUTO: 0, CPU: 1, WEBGL: 2, WASM: 3 };
 
 if (Module['ENVIRONMENT_IS_PTHREAD']) {
 
@@ -135,15 +115,7 @@ if (Module['ENVIRONMENT_IS_PTHREAD']) {
 
 }
 
-Module["preRun"].push(function() {
-  FS.init(readChar, writeChar, writeChar);
 
-  if (Module["cfgFile"])
-    FS.createPreloadedFile(FS.cwd(), Module["cfgFile"], Module["cfgFile"], true, false);
-});
-
-// Module["onRuntimeInitialized"] = function() {
-// }
 
 // The reason why ES5 is https://github.com/emscripten-core/emscripten/issues/9190
 

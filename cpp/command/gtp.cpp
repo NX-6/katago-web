@@ -1458,9 +1458,192 @@ string line;
 
 
 
+int gtp_init(int argc, const char* const* argv) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  try {
+    KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
+    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
+    cmd.addModelFileArg();
+    cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
+    cmd.add(overrideVersionArg);
+    cmd.parse(argc,argv);
+    nnModelFile = cmd.getModelFile();
+    overrideVersion = overrideVersionArg.getValue();
+
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  if(cfg.contains("logFile") && cfg.contains("logDir"))
+    throw StringError("Cannot specify both logFile and logDir in config");
+  else if(cfg.contains("logFile"))
+    logger.addFile(cfg.getString("logFile"));
+  else if(cfg.contains("logDir")) {
+    MakeDir::make(cfg.getString("logDir"));
+    Rand rand;
+    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
+  }
+
+  logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
+  logSearchInfo = cfg.getBool("logSearchInfo");
+  loggingToStderr = false;
 
 
-int line_loop_one() {
+  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
+  if(!logTimeStamp)
+    logger.setLogTime(false);
+
+  bool startupPrintMessageToStderr = true;
+  if(cfg.contains("startupPrintMessageToStderr"))
+    startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
+
+  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
+    loggingToStderr = true;
+    logger.setLogToStderr(true);
+  }
+
+  logger.write("GTP Engine starting...");
+  logger.write(Version::getKataGoVersionForHelp());
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << Version::getKataGoVersionForHelp() << endl;
+  }
+
+  //Defaults to 7.5 komi, gtp will generally override this
+  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
+  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
+  }
+
+  isForcingKomi = false;
+  forcedKomi = 0;
+  if(cfg.contains("ignoreGTPAndForceKomi")) {
+    isForcingKomi = true;
+    forcedKomi = cfg.getFloat("ignoreGTPAndForceKomi", Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI);
+    initialRules.komi = forcedKomi;
+  }
+
+
+  initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
+  //Set a default for conservativePass that differs from matches or selfplay
+  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
+    initialParams.conservativePass = true;
+  if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
+    initialParams.fillDameBeforePass = true;
+
+  ponderingEnabled = cfg.getBool("ponderingEnabled");
+  cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
+  allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
+  resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
+  resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
+  resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
+
+  Setup::initializeSession(cfg);
+
+  searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
+  searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
+  ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
+  analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,1000) : 13;
+  assumeMultipleStartingBlackMovesAreHandicap = cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
+  preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
+  dynamicPlayoutDoublingAdvantageCapPerOppLead = cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
+  staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
+  staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
+  avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
+
+  const int defaultBoardXSize =
+    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  const int defaultBoardYSize =
+    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
+    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
+    -1;
+  const bool forDeterministicTesting =
+    cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
+
+  if(forDeterministicTesting)
+    seedRand.init("forDeterministicTesting");
+
+  genmoveWideRootNoise = initialParams.wideRootNoise;
+  analysisWideRootNoise = cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
+  analysisAntiMirror = initialParams.antiMirror;
+  genmoveAntiMirror = cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
+
+  Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
+
+  engine = new GTPEngine(
+    nnModelFile,initialParams,initialRules,
+    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
+    dynamicPlayoutDoublingAdvantageCapPerOppLead,
+    staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
+    avoidMYTDaggerHack,
+    genmoveWideRootNoise,analysisWideRootNoise,
+    genmoveAntiMirror,analysisAntiMirror,
+    perspective,analysisPVLen
+  );
+  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
+  logThread("gtp/setOrResetBoardSize DONE");
+
+  //If nobody specified any time limit in any way, then assume a relatively fast time control
+  if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
+    double mainTime = 1.0;
+    double byoYomiTime = 5.0;
+    int byoYomiPeriods = 5;
+    TimeControls tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
+    engine->bTimeControls = tc;
+    engine->wTimeControls = tc;
+  }
+
+  logThread("gtp/still alive 1");
+
+  //Check for unused config keys
+  cfg.warnUnusedKeys(cerr,&logger);
+
+  logThread("gtp/still alive 2");
+
+  logger.write("Loaded config " + cfg.getFileName());
+  logger.write("Loaded model "+ nnModelFile);
+  cerr << "still alive 3 " << endl;
+  logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
+  cerr << "still alive 4 " << endl;
+  logger.write("GTP ready, beginning main protocol loop");
+  //Also check loggingToStderr so that we don't duplicate the message from the log file
+
+  if(startupPrintMessageToStderr && !loggingToStderr) {
+    cerr << "Loaded config " << cfg.getFileName() << endl;
+    cerr << "Loaded model " << nnModelFile << endl;
+    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
+    cerr << "GTP ready, beginning main protocol loop" << endl;
+  }
+
+  logThread("gtp/notifyStatus");
+  #if defined(__EMSCRIPTEN__)
+  // while (engine->nnEval->status <= 1) {
+  //   emscripten_sleep(100);
+  // }
+  // notifyStatus(engine->nnEval->status == 2 ? 1 : -1);
+
+  // emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, 1);
+  MAIN_THREAD_ASYNC_EM_ASM( Module["onstatus"](1) );
+  #endif
+
+  currentlyAnalyzing = false;
+
+  return 0;
+}
+
+int gtp_loop_one_status() {
 
   #if defined(__EMSCRIPTEN__)
     line = cmdQueue.front();
@@ -2550,217 +2733,30 @@ int line_loop_one() {
   return 0;
 }
 
+void gtp_loop_one() {
+  if (cmdQueue.size() < 1)
+    return;
 
+  int status = gtp_loop_one_status();
 
+  if (status == 1) {
+    delete engine;
+    engine = NULL;
+    NeuralNet::globalCleanup();
+    ScoreValue::freeTables();
+    logger.write("All cleaned up, quitting");
+    emscripten_cancel_main_loop();
+  }
+}
 
 int MainCmds::gtp(int argc, const char* const* argv) {
 
-  Board::initHash();
-  ScoreValue::initTables();
+  int initErr = gtp_init(argc, argv);
+  if (initErr)
+    return initErr;
 
-  try {
-    KataGoCommandLine cmd("Run KataGo main GTP engine for playing games or casual analysis.");
-    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
-    cmd.addModelFileArg();
-    cmd.setShortUsageArgLimit();
-    cmd.addOverrideConfigArg();
+  // https://emscripten.org/docs/api_reference/emscripten.h.html#c.emscripten_set_main_loop
+  emscripten_set_main_loop(gtp_loop_one, 10, 0);
 
-    TCLAP::ValueArg<string> overrideVersionArg("","override-version","Force KataGo to say a certain value in response to gtp version command",false,string(),"VERSION");
-    cmd.add(overrideVersionArg);
-    cmd.parse(argc,argv);
-    nnModelFile = cmd.getModelFile();
-    overrideVersion = overrideVersionArg.getValue();
-
-    cmd.getConfig(cfg);
-  }
-  catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
-    return 1;
-  }
-
-
-  // Logger logger;
-
-  if(cfg.contains("logFile") && cfg.contains("logDir"))
-    throw StringError("Cannot specify both logFile and logDir in config");
-  else if(cfg.contains("logFile"))
-    logger.addFile(cfg.getString("logFile"));
-  else if(cfg.contains("logDir")) {
-    MakeDir::make(cfg.getString("logDir"));
-    Rand rand;
-    logger.addFile(cfg.getString("logDir") + "/" + DateTime::getCompactDateTimeString() + "-" + Global::uint32ToHexString(rand.nextUInt()) + ".log");
-  }
-
-  logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
-  logSearchInfo = cfg.getBool("logSearchInfo");
-  loggingToStderr = false;
-
-
-
-  const bool logTimeStamp = cfg.contains("logTimeStamp") ? cfg.getBool("logTimeStamp") : true;
-  if(!logTimeStamp)
-    logger.setLogTime(false);
-
-  bool startupPrintMessageToStderr = true;
-  if(cfg.contains("startupPrintMessageToStderr"))
-    startupPrintMessageToStderr = cfg.getBool("startupPrintMessageToStderr");
-
-  if(cfg.contains("logToStderr") && cfg.getBool("logToStderr")) {
-    loggingToStderr = true;
-    logger.setLogToStderr(true);
-  }
-
-  logger.write("GTP Engine starting...");
-  logger.write(Version::getKataGoVersionForHelp());
-  //Also check loggingToStderr so that we don't duplicate the message from the log file
-  if(startupPrintMessageToStderr && !loggingToStderr) {
-    cerr << Version::getKataGoVersionForHelp() << endl;
-  }
-
-  //Defaults to 7.5 komi, gtp will generally override this
-  Rules initialRules = Setup::loadSingleRulesExceptForKomi(cfg);
-  logger.write("Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this");
-  if(startupPrintMessageToStderr && !loggingToStderr) {
-    cerr << "Using " + initialRules.toStringNoKomiMaybeNice() + " rules initially, unless GTP/GUI overrides this" << endl;
-  }
-
-  isForcingKomi = false;
-  forcedKomi = 0;
-  if(cfg.contains("ignoreGTPAndForceKomi")) {
-    isForcingKomi = true;
-    forcedKomi = cfg.getFloat("ignoreGTPAndForceKomi", Rules::MIN_USER_KOMI, Rules::MAX_USER_KOMI);
-    initialRules.komi = forcedKomi;
-  }
-
-
-  initialParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
-  logger.write("Using " + Global::intToString(initialParams.numThreads) + " CPU thread(s) for search");
-  //Set a default for conservativePass that differs from matches or selfplay
-  if(!cfg.contains("conservativePass") && !cfg.contains("conservativePass0"))
-    initialParams.conservativePass = true;
-  if(!cfg.contains("fillDameBeforePass") && !cfg.contains("fillDameBeforePass0"))
-    initialParams.fillDameBeforePass = true;
-
-  ponderingEnabled = cfg.getBool("ponderingEnabled");
-  cleanupBeforePass = cfg.contains("cleanupBeforePass") ? cfg.getBool("cleanupBeforePass") : true;
-  allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
-  resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
-  resignConsecTurns = cfg.contains("resignConsecTurns") ? cfg.getInt("resignConsecTurns",1,100) : 3;
-  resignMinScoreDifference = cfg.contains("resignMinScoreDifference") ? cfg.getDouble("resignMinScoreDifference",0.0,1000.0) : -1e10;
-
-  Setup::initializeSession(cfg);
-
-
-
-  searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
-  searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
-  ogsChatToStderr = cfg.contains("ogsChatToStderr") ? cfg.getBool("ogsChatToStderr") : false;
-  analysisPVLen = cfg.contains("analysisPVLen") ? cfg.getInt("analysisPVLen",1,1000) : 13;
-  assumeMultipleStartingBlackMovesAreHandicap = cfg.contains("assumeMultipleStartingBlackMovesAreHandicap") ? cfg.getBool("assumeMultipleStartingBlackMovesAreHandicap") : true;
-  preventEncore = cfg.contains("preventCleanupPhase") ? cfg.getBool("preventCleanupPhase") : true;
-  dynamicPlayoutDoublingAdvantageCapPerOppLead = cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead") ? cfg.getDouble("dynamicPlayoutDoublingAdvantageCapPerOppLead",0.0,0.5) : 0.045;
-  staticPlayoutDoublingAdvantage = initialParams.playoutDoublingAdvantage;
-  staticPDATakesPrecedence = cfg.contains("playoutDoublingAdvantage") && !cfg.contains("dynamicPlayoutDoublingAdvantageCapPerOppLead");
-  avoidMYTDaggerHack = cfg.contains("avoidMYTDaggerHack") ? cfg.getBool("avoidMYTDaggerHack") : false;
-
-  const int defaultBoardXSize =
-    cfg.contains("defaultBoardXSize") ? cfg.getInt("defaultBoardXSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
-  const int defaultBoardYSize =
-    cfg.contains("defaultBoardYSize") ? cfg.getInt("defaultBoardYSize",2,Board::MAX_LEN) :
-    cfg.contains("defaultBoardSize") ? cfg.getInt("defaultBoardSize",2,Board::MAX_LEN) :
-    -1;
-  const bool forDeterministicTesting =
-    cfg.contains("forDeterministicTesting") ? cfg.getBool("forDeterministicTesting") : false;
-
-  if(forDeterministicTesting)
-    seedRand.init("forDeterministicTesting");
-
-  genmoveWideRootNoise = initialParams.wideRootNoise;
-  analysisWideRootNoise = cfg.contains("analysisWideRootNoise") ? cfg.getDouble("analysisWideRootNoise",0.0,5.0) : genmoveWideRootNoise;
-  analysisAntiMirror = initialParams.antiMirror;
-  genmoveAntiMirror = cfg.contains("genmoveAntiMirror") ? cfg.getBool("genmoveAntiMirror") : cfg.contains("antiMirror") ? cfg.getBool("antiMirror") : true;
-
-  Player perspective = Setup::parseReportAnalysisWinrates(cfg,C_EMPTY);
-
-  engine = new GTPEngine(
-    nnModelFile,initialParams,initialRules,
-    assumeMultipleStartingBlackMovesAreHandicap,preventEncore,
-    dynamicPlayoutDoublingAdvantageCapPerOppLead,
-    staticPlayoutDoublingAdvantage,staticPDATakesPrecedence,
-    avoidMYTDaggerHack,
-    genmoveWideRootNoise,analysisWideRootNoise,
-    genmoveAntiMirror,analysisAntiMirror,
-    perspective,analysisPVLen
-  );
-  engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
-  logThread("gtp/setOrResetBoardSize DONE");
-
-  //If nobody specified any time limit in any way, then assume a relatively fast time control
-  if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
-    double mainTime = 1.0;
-    double byoYomiTime = 5.0;
-    int byoYomiPeriods = 5;
-    TimeControls tc = TimeControls::canadianOrByoYomiTime(mainTime,byoYomiTime,byoYomiPeriods,1);
-    engine->bTimeControls = tc;
-    engine->wTimeControls = tc;
-  }
-
-  logThread("gtp/still alive 1");
-
-  //Check for unused config keys
-  cfg.warnUnusedKeys(cerr,&logger);
-
-  logThread("gtp/still alive 2");
-
-  logger.write("Loaded config " + cfg.getFileName());
-  logger.write("Loaded model "+ nnModelFile);
-  cerr << "still alive 3 " << endl;
-  logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
-  cerr << "still alive 4 " << endl;
-  logger.write("GTP ready, beginning main protocol loop");
-  //Also check loggingToStderr so that we don't duplicate the message from the log file
-
-  if(startupPrintMessageToStderr && !loggingToStderr) {
-    cerr << "Loaded config " << cfg.getFileName() << endl;
-    cerr << "Loaded model " << nnModelFile << endl;
-    cerr << "Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()) << endl;
-    cerr << "GTP ready, beginning main protocol loop" << endl;
-  }
-
-  logThread("gtp/notifyStatus");
-  #if defined(__EMSCRIPTEN__)
-  // while (engine->nnEval->status <= 1) {
-  //   emscripten_sleep(100);
-  // }
-  // notifyStatus(engine->nnEval->status == 2 ? 1 : -1);
-
-  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, 1);
-  #endif
-
-  currentlyAnalyzing = false;
-
-  while(cin) {
-    // logThread("while:" + std::to_string(cmdQueue.size()));
-
-    if (cmdQueue.size() < 1) {
-      // js_awaitCmdAsync();
-      // emscripten_pause_main_loop()
-      emscripten_sleep(1000);
-      continue;
-    }
-
-    int status = line_loop_one();
-    if (status == 1)
-      break;
-  }
-
-  delete engine;
-  engine = NULL;
-  NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
-
-  logger.write("All cleaned up, quitting");
   return 0;
 }
