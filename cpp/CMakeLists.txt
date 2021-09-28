@@ -484,8 +484,8 @@ if(USE_BACKEND STREQUAL "TFJS")
     set(CMAKE_CXX_FLAGS         "${CMAKE_CXX_FLAGS}        -pthread")
     set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -pthread")
 
-    # set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s ASYNCIFY_IMPORTS=emscripten_sleep,js_setBackend,js_downloadMetadata,js_awaitStdinAsync,js_predict")
-    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1 -s ASYNCIFY_IMPORTS='js_awaitCmdAsync, js_predict'")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY=1")
+    set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY_IMPORTS='emscripten_sleep, js_initBackend_async, js_downloadMetadata_async, js_downloadModel_async, js_predict_async'")
 
     ## needed to prevent 'unreachable' error
     set(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -s ASYNCIFY_STACK_SIZE=10000")
@@ -512,6 +512,7 @@ if(USE_BACKEND STREQUAL "TFJS")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s MODULARIZE=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s EXPORT_NAME=KataGo")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s EXPORTED_RUNTIME_METHODS=FS,ccall")
+
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ALLOW_MEMORY_GROWTH=1")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s WASM_MEM_MAX=1999MB")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s ENVIRONMENT=web,worker")
@@ -519,7 +520,6 @@ if(USE_BACKEND STREQUAL "TFJS")
     # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -s OFFSCREENCANVAS_SUPPORT=1")
 
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --pre-js     ${CMAKE_SOURCE_DIR}/pre.js")
-    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --post-js    ${CMAKE_SOURCE_DIR}/post.js")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --js-library ${CMAKE_SOURCE_DIR}/tfjs_api.js")
 
     ## needed from 2.0.26+ (fixes 'ReferenceError: Browser is not defined')

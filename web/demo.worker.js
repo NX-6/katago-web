@@ -25,9 +25,8 @@ self.addEventListener("message", ev => {
       break;
 
     case "preload":
-      const {FS} = kataGoInstance;
-      FS.createPreloadedFile(FS.cwd(), msg.file, msg.file, true, false);
+      fetch(msg.url || msg.file).then(res => res.text())
+      .then(text => kataGoInstance.FS.writeFile(msg.file, text));
       break;
-
   }
 });

@@ -11,4 +11,7 @@ emcmake cmake $src_dir -DBUILD_MCTS=1 -DUSE_BACKEND=TFJS && \
 emmake make
 
 cd ..
-cp em_build/katago.* web/
+
+if [ -d web/ ]; then
+  cp em_build/katago.* web/
+fi

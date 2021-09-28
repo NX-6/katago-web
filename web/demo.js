@@ -128,7 +128,7 @@ if (!crossOriginIsolated) {
 
   dispatchMessage = msg => ww.postMessage({type: "message", text: msg});
   loadsgf = sgfFile => {
-    ww.postMessage({type: "preload", file: sgfFile})
+    ww.postMessage({type: "preload", file: sgfFile, url: "sgf_files/" + sgfFile})
     setTimeout(_ => {
       dispatchCommand("loadsgf " + sgfFile);
       dispatchCommand("showboard");

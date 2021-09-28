@@ -28,29 +28,13 @@ using namespace std;
 
 std::queue<string> cmdQueue;
 
-
-// @main-loop's pthread
-// EM_ASYNC_JS(void, js_awaitCmdAsync, (), {
-//   await new Promise((res, rej) => Module.cmdRes = res);
-// });
-
-// @mainRuntimeThread (the proxy)
-// EM_JS(void, js_cmdReceived, (), {
-//   Module.cmdRes();
-// });
-
 EM_JS(void, js_test, (), {
   console.log("js_test", Module.PThread.mainRuntimeThread, Module);
 });
 
-
-// @mainRuntimeThread (the proxy)
 void EMSCRIPTEN_KEEPALIVE enqueueCmd(char* arg) {
   cmdQueue.push(arg);
-  // js_cmdReceived();
-  // emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_V, js_cmdReceived);
 }
-
 
 
 Logger logger;
@@ -1414,7 +1398,9 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
 }
 
 
-
+// declared globally so the main loop fn supplied to emscripten_set_main_loop
+// can access them. alternatively they could be put in a struct and passed as
+// a single arg to emscripten_set_main_loop_arg
 Rand seedRand;
 
 ConfigParser cfg;
@@ -1593,7 +1579,6 @@ int gtp_init(int argc, const char* const* argv) {
     perspective,analysisPVLen
   );
   engine->setOrResetBoardSize(cfg,logger,seedRand,defaultBoardXSize,defaultBoardYSize);
-  logThread("gtp/setOrResetBoardSize DONE");
 
   //If nobody specified any time limit in any way, then assume a relatively fast time control
   if(!cfg.contains("maxPlayouts") && !cfg.contains("maxVisits") && !cfg.contains("maxTime")) {
@@ -1605,18 +1590,12 @@ int gtp_init(int argc, const char* const* argv) {
     engine->wTimeControls = tc;
   }
 
-  logThread("gtp/still alive 1");
-
   //Check for unused config keys
   cfg.warnUnusedKeys(cerr,&logger);
 
-  logThread("gtp/still alive 2");
-
   logger.write("Loaded config " + cfg.getFileName());
   logger.write("Loaded model "+ nnModelFile);
-  cerr << "still alive 3 " << endl;
   logger.write("Model name: "+ (engine->nnEval == NULL ? string() : engine->nnEval->getInternalModelName()));
-  cerr << "still alive 4 " << endl;
   logger.write("GTP ready, beginning main protocol loop");
   //Also check loggingToStderr so that we don't duplicate the message from the log file
 
@@ -1627,15 +1606,13 @@ int gtp_init(int argc, const char* const* argv) {
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
-  logThread("gtp/notifyStatus");
   #if defined(__EMSCRIPTEN__)
-  // while (engine->nnEval->status <= 1) {
-  //   emscripten_sleep(100);
-  // }
-  // notifyStatus(engine->nnEval->status == 2 ? 1 : -1);
+  while (engine->nnEval->status <= 1) {
+    emscripten_sleep(100);
+  }
+  int status = engine->nnEval->status == 2 ? 1 : -1;
 
-  // emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, 1);
-  MAIN_THREAD_ASYNC_EM_ASM( Module["onstatus"](1) );
+  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, status);
   #endif
 
   currentlyAnalyzing = false;

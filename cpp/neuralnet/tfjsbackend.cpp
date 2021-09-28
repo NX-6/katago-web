@@ -1,5 +1,6 @@
 #ifdef USE_TFJS_BACKEND
 
+
 #include "../core/config_parser.h"
 #include "../neuralnet/nninterface.h"
 #include "../neuralnet/nninputs.h"
@@ -9,13 +10,13 @@
 #include "../logutil.h"
 
 extern "C" {
-  extern int  js_getBackend();
-  extern int  js_setBackend(int);
-  extern int  js_downloadMetadata(int);
-  extern int  js_downloadModel(int);
+  extern int js_initBackend_async(int);
+  extern int js_getBackend();
+  extern int js_downloadMetadata_async(int);
+  extern int js_downloadModel_async(int);
+  extern int js_getModelVersion();
   extern void js_removeModel();
-  extern int  js_predict(int, int, int, int, int, int, int, int, int, int);
-  extern int  js_getModelVersion();
+  extern int js_predict_async(int, int, int, int, int, int, int, int, int, int);
 }
 
 using namespace std;
@@ -64,9 +65,7 @@ struct LoadedModel {
        So you need to load the tfjs model in NNEvaluator thread.
     */
     name = fileName;
-    logThread("tfjs/js_downloadMetadata");
-    int metaStatus = js_downloadMetadata((int)name.c_str());
-    logThread("tfjs/js_downloadMetadata DONE" + std::to_string(metaStatus));
+    int metaStatus = js_downloadMetadata_async((int)name.c_str());
 
     if (metaStatus == 1) {
       modelDesc.version = js_getModelVersion();
@@ -260,9 +259,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)gpuIdxForThisThread;
   (void)serverThreadIdx;
 
-  logThread("tfjs/js_setBackend");
-  int backendStatus = js_setBackend(context->backend);
-  logThread("tfjs/js_setBackend RETURNED " + std::to_string(backendStatus));
+  int backendStatus = js_initBackend_async(context->backend);
 
   if (backendStatus == 1)
     logger->write("backend was initialized");
@@ -278,9 +275,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
     default: logger->write("backend: unknown");
   }
 
-  logThread("tfjs/js_downloadModel");
-  int modelStatus = js_downloadModel((int)loadedModel->name.c_str());
-  logThread("tfjs/js_downloadModel RETURNED " + std::to_string(modelStatus));
+  int modelStatus = js_downloadModel_async((int)loadedModel->name.c_str());
 
   if (modelStatus == 1) {
     return new ComputeHandle(loadedModel, context->nnXLen, context->nnYLen);
@@ -359,11 +354,7 @@ void NeuralNet::getOutput(
 
   clock_t start = clock();
 
-  // in worker, logging here prevents js_predict to be called
-  // emscripten probably tries to forward stdout but finds main runtime thread blocked
-  // logThread("js_predict");
-
-  int predictStatus = js_predict(
+  int predictStatus = js_predict_async(
     batchSize,
     (int)inputBuffers->userInputBuffer,
     nnXLen * nnYLen,
