@@ -16,10 +16,10 @@
 #if defined(__EMSCRIPTEN__)
 #include <queue>
 #include <emscripten.h>
-#include <emscripten/threading.h>
+// #include <emscripten/threading.h>
 
 extern "C" {
-  extern void js_notifyStatus(int);
+  // extern void js_notifyStatus(int);
   void enqueueCmd(char* arg);
 }
 #endif
@@ -1606,14 +1606,14 @@ int gtp_init(int argc, const char* const* argv) {
     cerr << "GTP ready, beginning main protocol loop" << endl;
   }
 
-  #if defined(__EMSCRIPTEN__)
-  while (engine->nnEval->status <= 1) {
-    emscripten_sleep(100);
-  }
-  int status = engine->nnEval->status == 2 ? 1 : -1;
-
-  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, status);
-  #endif
+  // #if defined(__EMSCRIPTEN__)
+  // while (engine->nnEval->status <= 1) {
+  //   emscripten_sleep(1000);
+  // }
+  // int status = engine->nnEval->status == 2 ? 1 : -1;
+  //
+  // emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus, status);
+  // #endif
 
   currentlyAnalyzing = false;
 

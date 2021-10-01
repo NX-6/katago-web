@@ -142,7 +142,6 @@ static int handleSubcommand(const string& subcommand, int argc, const char* argv
 }
 
 int main(int argc, const char* argv[]) {
-
   if(argc < 2) {
     printHelp(argc,argv);
     return 0;

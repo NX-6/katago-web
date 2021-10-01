@@ -4,6 +4,15 @@
 
 using namespace std;
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+#include <emscripten/threading.h>
+
+extern "C" {
+  extern void js_notifyStatus(int);
+}
+#endif
+
 //-------------------------------------------------------------------------------------
 
 NNResultBuf::NNResultBuf()
@@ -357,6 +366,7 @@ void NNEvaluator::serve(
   #if defined(__EMSCRIPTEN__)
   status = 1;
   #endif
+
   if(loadedModel != NULL)
     gpuHandle = NeuralNet::createComputeHandle(
       computeContext,
@@ -375,6 +385,9 @@ void NNEvaluator::serve(
   } else {
     status = 3;
   }
+  emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VI, js_notifyStatus,
+    status == 2 ? 1 : -1
+  );
   #endif
 
   /*
