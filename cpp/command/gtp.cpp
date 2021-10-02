@@ -12,12 +12,12 @@
 #include "../main.h"
 #include "../logutil.h"
 
-
 #if defined(__EMSCRIPTEN__)
 #include <queue>
 #include <mutex>
 #include <emscripten.h>
 // #include <emscripten/threading.h>
+
 
 extern "C" {
   // extern void js_notifyStatus(int);

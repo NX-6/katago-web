@@ -1,6 +1,25 @@
+if (!ENVIRONMENT_IS_PTHREAD) {
+  Module["arguments"] = [
+    Module["subcommand"] || "gtp",
+    "-model", Module["model"],
+    "-config", Module["configFile"] || "default.cfg",
+    "-override-config", Object.entries(Module["config"] || {}).map(
+      ([k, v]) => k + "=" + v
+    ).join(",")
+  ];
+}
+
 if (!("preRun" in Module))
   Module["preRun"] = [];
 
+const defaultCfg =
+  `logAllGTPCommunication = true
+   logSearchInfo = true
+   logToStderr = false
+   rules = tromp-taylor
+   ponderingEnabled = false
+   lagBuffer = 1.0
+   numSearchThreads = 1`
 
 Module["preRun"].push(function() {
   // only called on PThread.mainRuntimeThread
@@ -24,8 +43,11 @@ Module["preRun"].push(function() {
 
   FS.init(null, writeChar, writeChar);
 
-  if (Module["cfgFile"])
-    FS.createPreloadedFile(FS.cwd(), Module["cfgFile"], Module["cfgFile"], true, false);
+  if (Module["configFile"])
+    FS.createPreloadedFile(FS.cwd(), Module["configFile"], Module["configFile"], true, false);
+  else
+    FS.writeFile("default.cfg", defaultCfg
+  );
 });
 
 
@@ -33,26 +55,6 @@ Module["onRuntimeInitialized"] = function() {
   Module["postCommand"] = function(cmdStr) {
     Module.ccall("enqueueCmd", "void", ["string"], [cmdStr + "\n"]);
   }
-}
-
-
-
-
-
-function loadJSON(path) {
-    return new Promise(function(resolve, reject) {
-        const xhr = new XMLHttpRequest();
-        const url = new URL(path, scriptDirectory);
-        xhr.responseType = "json";
-        xhr.open("GET", url);
-        xhr.addEventListener("load", _ => {
-            console.log("model-meta", xhr);
-            resolve(xhr.response);
-        });
-        xhr.addEventListener("error", _ => reject(xhr.statusText));
-        xhr.addEventListener("abort", _ => reject(xhr.statusText));
-        xhr.send();
-    });
 }
 
 var GraphModelWrapper = function() {
@@ -136,8 +138,9 @@ GraphModelWrapper.prototype.getBackend = function() {
 
 GraphModelWrapper.prototype.downloadMetadata_async = function(charp) {
     return Asyncify.handleSleep(wakeUp => {
-        const model = UTF8ToString(charp);
-        loadJSON(model + "/metadata.json")
+        const modelPath = UTF8ToString(charp);
+        fetch(modelPath + "/metadata.json")
+          .then(res => res.json())
           .then(json => { this.modelVersion = json.version; wakeUp(1); })
           .catch(err => { console.error(err); wakeUp(0); });
     });
@@ -156,6 +159,10 @@ GraphModelWrapper.prototype.downloadModel_async = function(charp) {
     });
 };
 
+function setHeap(data, v) {
+  Module.HEAPF32.set(data, v / Module.HEAPF32.BYTES_PER_ELEMENT);
+}
+
 GraphModelWrapper.prototype.predict_async = function(
     batches,
     inputBuffer, boardWxH, inputBufferChannels,
@@ -173,9 +180,6 @@ GraphModelWrapper.prototype.predict_async = function(
       }).then(results => {
         var i;
         const miscvaluesSize = this.modelVersion === 8 ? 10 : 6;
-        function setHeap(data, v) {
-          Module.HEAPF32.set(data, v / Module.HEAPF32.BYTES_PER_ELEMENT);
-        }
         for (i = 0; i < results.length; i++) {
             const result = results[i];
             const data = result.dataSync();

@@ -96,16 +96,15 @@ function onKatagoMessage(msgStr) {
 }
 
 const katagoParams = {
-  cfgFile: configValue,
-  arguments: [
-    subcommandValue,
-    "-model", "web_models/" + modelValue + "_" + boardsizeValue,
-    "-config", configValue,
-    "-override-config", [
-      "tfjsBackend=" + backendValue,
-      "defaultBoardSize=" + boardsizeValue
-    ].join(",")
-  ]
+  subcommand: subcommandValue,
+
+  // configFile: "gtp_auto.cfg",
+  config: {
+    tfjsBackend: backendValue,
+    defaultBoardSize: boardsizeValue
+  },
+
+  model: "web_models/" + modelValue + "_" + boardsizeValue,
 };
 
 if (!crossOriginIsolated) {

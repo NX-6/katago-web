@@ -7,11 +7,12 @@ self.addEventListener("message", ev => {
   switch (msg.type) {
     case "init":
       KataGo({
+        subcommand: msg.subcommand,
+        configFile: msg.configFile,
+        config: msg.config,
+        model: msg.model,
+
         mainScriptUrlOrBlob: "katago.js",
-
-        cfgFile: msg.cfgFile,
-        arguments: msg.arguments,
-
         onstatus: status => self.postMessage({type: "status", statusCode: status}),
         onmessage: msg => self.postMessage({type: "message", text: msg})
       }).then(kg => {
