@@ -15,6 +15,7 @@
 
 #if defined(__EMSCRIPTEN__)
 #include <queue>
+#include <mutex>
 #include <emscripten.h>
 // #include <emscripten/threading.h>
 
@@ -27,13 +28,16 @@ extern "C" {
 using namespace std;
 
 std::queue<string> cmdQueue;
+pthread_mutex_t cmdQueueMu;
 
 EM_JS(void, js_test, (), {
   console.log("js_test", Module.PThread.mainRuntimeThread, Module);
 });
 
 void EMSCRIPTEN_KEEPALIVE enqueueCmd(char* arg) {
+  pthread_mutex_lock(&cmdQueueMu);
   cmdQueue.push(arg);
+  pthread_mutex_unlock(&cmdQueueMu);
 }
 
 
@@ -1623,8 +1627,10 @@ int gtp_init(int argc, const char* const* argv) {
 int gtp_loop_one_status() {
 
   #if defined(__EMSCRIPTEN__)
+    pthread_mutex_lock(&cmdQueueMu);
     line = cmdQueue.front();
     cmdQueue.pop();
+    pthread_mutex_unlock(&cmdQueueMu);
   #else
     getline(cin,line);
   #endif
