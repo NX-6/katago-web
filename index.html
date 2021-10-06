@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>KataGo</title>
+    <link rel="stylesheet" href="index.css">
+    <script type="text/javascript" src="sw.js"></script>
+  </head>
+  <body>
+    <div id="root">
+      <div class="controls">
+        <div>
+          <span>thread</span>
+          <select id="thread">
+            <option value="ui">UI</option>
+            <option value="worker">worker</option>
+          </select>
+        </div>
+        <div>
+          <span>subcommand</span>
+          <select id="subcommand">
+            <option value="gtp">gtp</option>
+            <option value="analysis">analysis</option>
+          </select>
+        </div>
+        <div>
+          <span>model</span>
+          <select id="model">
+            <option value="b6c96-s175395328-d26788732">b6c96-s175395328-d26788732</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div>
+          <span>configFile</span>
+          <select id="configFile">
+            <option value="none">none</option>
+            <option value="gtp_auto.cfg">gtp_auto.cfg</option>
+          </select>
+        </div>
+
+        <div>
+          <span>bordsize</span>
+          <select id="boardsize">
+            <option value="19">19</option>
+            <option value="13">13</option>
+            <option value="9">9</option>
+          </select>
+        </div>
+        <div>
+          <span>backend</span>
+          <select id="backend">
+            <option value="auto">auto</option>
+            <option value="webgl">webgl</option>
+            <option value="wasm">wasm</option>
+            <!-- <option value="cpu">cpu</option> -->
+          </select>
+        </div>
+        <div>
+          <span>maxTime</span>
+          <select id="maxTime">
+            <option value="none">none</option>
+            <option value="1">1</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+      </div>
+
+      <textarea id="output" cols="30" rows="10" placeholder="GTP output" disabled></textarea>
+
+      <div class="controls">
+        <div>
+          <span>play</span>
+          <input type="text" id="play">
+          <button id="playBlack">B</button>
+          <button id="playWhite">W</button>
+        </div>
+        <div>
+          <span>genmove</span>
+          <button id="genmoveBlack">B</button>
+          <button id="genmoveWhite">W</button>
+          <input type="checkbox" id="analyze" name="analyze" checked>
+          <label for="analyze">analyze</label>
+        </div>
+        <div>
+          <button id="showboard">showboard</button>
+          <input type="checkbox" id="showboardAuto" name="showboardAuto" checked>
+          <label for="showboardAuto">auto</label>
+        </div>
+        <div>
+          <span>loadsgf</span>
+          <select id="loadsgf">
+            <option value="none">select</option>
+            <option value="15820101-HSansa-KRigen.sgf">15820101-HSansa-KRigen.sgf</option>
+            <option value="20160309-LSedol-AlphaGo.sgf">20160309-LSedol-AlphaGo.sgf</option>
+          </select>
+        </div>
+      </div>
+
+      <form id="input">
+        <input type="text" id="command" name="command" placeholder="starting KataGo..." disabled>
+      </form>
+    </div>
+
+    <script type="text/javascript" src="katago.js"></script>
+    <script type="text/javascript" src="demo.js"></script>
+  </body>
+</html>
