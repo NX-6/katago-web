@@ -25,19 +25,24 @@
           </select>
         </div>
         <div>
-          <span>config</span>
-          <select id="config">
-            <option value="gtp_auto.cfg">gtp_auto.cfg</option>
-          </select>
-        </div>
-        <div>
           <span>model</span>
           <select id="model">
             <option value="b6c96-s175395328-d26788732">b6c96-s175395328-d26788732</option>
           </select>
         </div>
+      </div>
+
+      <div class="controls">
         <div>
-          <span>size</span>
+          <span>configFile</span>
+          <select id="configFile">
+            <option value="none">none</option>
+            <option value="gtp_auto.cfg">gtp_auto.cfg</option>
+          </select>
+        </div>
+
+        <div>
+          <span>bordsize</span>
           <select id="boardsize">
             <option value="19">19</option>
             <option value="13">13</option>
@@ -53,19 +58,31 @@
             <!-- <option value="cpu">cpu</option> -->
           </select>
         </div>
+        <div>
+          <span>maxTime</span>
+          <select id="maxTime">
+            <option value="none">none</option>
+            <option value="1">1</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
       </div>
+
       <textarea id="output" cols="30" rows="10" placeholder="GTP output" disabled></textarea>
+
       <div class="controls">
         <div>
           <span>play</span>
           <input type="text" id="play">
-          <button id="playBlack">black</button>
-          <button id="playWhite">white</button>
+          <button id="playBlack">B</button>
+          <button id="playWhite">W</button>
         </div>
         <div>
           <span>genmove</span>
-          <button id="genmoveBlack">black</button>
-          <button id="genmoveWhite">white</button>
+          <button id="genmoveBlack">B</button>
+          <button id="genmoveWhite">W</button>
           <input type="checkbox" id="analyze" name="analyze" checked>
           <label for="analyze">analyze</label>
         </div>

@@ -1,17 +1,3 @@
-if (!ENVIRONMENT_IS_PTHREAD) {
-  Module["arguments"] = [
-    Module["subcommand"] || "gtp",
-    "-model", Module["model"],
-    "-config", Module["configFile"] || "default.cfg",
-    "-override-config", Object.entries(Module["config"] || {}).map(
-      ([k, v]) => k + "=" + v
-    ).join(",")
-  ];
-}
-
-if (!("preRun" in Module))
-  Module["preRun"] = [];
-
 const defaultCfg =
   `logAllGTPCommunication = true
    logSearchInfo = true
@@ -21,30 +7,38 @@ const defaultCfg =
    lagBuffer = 1.0
    numSearchThreads = 1`
 
+if (!ENVIRONMENT_IS_PTHREAD) {
+  Module["arguments"] = [
+    Module["subcommand"] || "gtp",
+    "-model", Module["model"],
+    "-config", Module["configFile"] || "default.cfg",
+    "-override-config",
+      Object.entries(Module["config"] || {})
+        .filter(([k, v]) => v)
+        .map(([k, v]) => k + "=" + v)
+        .join(",")
+  ];
+}
+
+if (!("preRun" in Module))
+  Module["preRun"] = [];
+
 Module["preRun"].push(function() {
-  // only called on PThread.mainRuntimeThread
-
-  let ioState = { bufferOut: "", crFlag: false }
-
-  function writeChar(char) {
-    if (char === 0 || char === 0x0a) {
-      Module["onmessage"](ioState.bufferOut);
-
-      ioState.crFlag = false;
-      ioState.bufferOut = "";
-      return;
+  let outBuf = "";
+  function stdout(char) {
+    switch (char) {
+      case 0:
+      case 0x0a: Module["onmessage"](outBuf); outBuf = ""; return;
+      case 0x0d: return;
+      default:   outBuf += String.fromCharCode(char);
     }
-
-    if (char === 0x0d)  { ioState.crFlag = true; return; }
-    if (ioState.crFlag) { ioState.crFlag = false; ioState.bufferOut = ""; }
-
-    ioState.bufferOut += String.fromCharCode(char);
   }
-
-  FS.init(null, writeChar, writeChar);
+  FS.init(null, stdout, stdout);
 
   if (Module["configFile"])
-    FS.createPreloadedFile(FS.cwd(), Module["configFile"], Module["configFile"], true, false);
+    FS.createPreloadedFile(
+      FS.cwd(), Module["configFile"], Module["configFile"], true, false
+    );
   else
     FS.writeFile("default.cfg", defaultCfg
   );
@@ -98,9 +92,9 @@ GraphModelWrapper.prototype.initBackend_async = function(backendCode) {
       switch (backendCode) {
           case backend.AUTO:  backendName = (typeof OffscreenCanvas !== 'undefined')
                               ? "webgl" : "wasm"; break;
-          case backend.CPU:   backendName = "cpu"; break;
           case backend.WEBGL: backendName = "webgl"; break;
           case backend.WASM:  backendName = "wasm"; break;
+          // case backend.CPU:   backendName = "cpu"; break;
           // default: return;
       }
 
@@ -129,9 +123,9 @@ GraphModelWrapper.prototype.initBackend_async = function(backendCode) {
 
 GraphModelWrapper.prototype.getBackend = function() {
     switch (tf.getBackend()) {
-        case "cpu":   return backend.CPU;
         case "webgl": return backend.WEBGL;
         case "wasm":  return backend.WASM;
+        // case "cpu":   return backend.CPU;
         default:      return 0;
     }
 }
@@ -165,29 +159,29 @@ function setHeap(data, v) {
 
 GraphModelWrapper.prototype.predict_async = function(
     batches,
-    inputBuffer, boardWxH, inputBufferChannels,
+    inputBuffer, boardWH, inputBufferChannels,
     inputGlobalBuffer, inputGlobalBufferChannels,
     values, miscvalues, ownerships, policies) {
 
-    return Asyncify.handleSleep(wakeUp => {
-      const bin_inputs = new Float32Array(Module.HEAPF32.buffer, inputBuffer, batches * boardWxH * inputBufferChannels);
-      const global_inputs = new Float32Array(Module.HEAPF32.buffer, inputGlobalBuffer, batches * inputGlobalBufferChannels);
-      const start = Date.now();
+    const bin_inputs    = new Float32Array(Module.HEAPF32.buffer, inputBuffer,       batches * boardWH * inputBufferChannels);
+    const global_inputs = new Float32Array(Module.HEAPF32.buffer, inputGlobalBuffer, batches *           inputGlobalBufferChannels);
+    const start = Date.now();
+    const inputs = {
+      "swa_model/bin_inputs":    tf.tensor(bin_inputs,    [batches, boardWH, inputBufferChannels], 'float32'),
+      "swa_model/global_inputs": tf.tensor(global_inputs, [batches,    inputGlobalBufferChannels], 'float32'),
+    };
 
-      this.model.executeAsync({
-          "swa_model/bin_inputs": tf.tensor(bin_inputs, [batches, boardWxH, inputBufferChannels], 'float32'),
-          "swa_model/global_inputs": tf.tensor(global_inputs, [batches, inputGlobalBufferChannels], 'float32'),
-      }).then(results => {
-        var i;
+    return Asyncify.handleSleep(wakeUp => {
+      this.model.executeAsync(inputs).then(results => {
         const miscvaluesSize = this.modelVersion === 8 ? 10 : 6;
-        for (i = 0; i < results.length; i++) {
+        for (let i = 0; i < results.length; i++) {
             const result = results[i];
             const data = result.dataSync();
             switch (result.size) {
-              case 3:                   setHeap(data, values); break;
-              case miscvaluesSize:      setHeap(data, miscvalues); break;
-              case boardWxH:            setHeap(data, ownerships); break;
-              case (boardWxH + 1) * 2:  setHeap(data, policies); break;
+              case 3:                 setHeap(data, values); break;
+              case miscvaluesSize:    setHeap(data, miscvalues); break;
+              case boardWH:           setHeap(data, ownerships); break;
+              case (boardWH + 1) * 2: setHeap(data, policies); break;
             }
         }
         return wakeUp(1);

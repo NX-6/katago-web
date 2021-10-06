@@ -2,10 +2,11 @@ const urlParams = new URL(document.location).searchParams;
 
 const threadSelect = document.getElementById("thread");
 const subcommandSelect = document.getElementById("subcommand");
-const configSelect = document.getElementById("config");
+const configFileSelect = document.getElementById("configFile");
 const modelSelect = document.getElementById("model");
 const boardsizeSelect = document.getElementById("boardsize");
 const backendSelect = document.getElementById("backend");
+const maxTimeSelect = document.getElementById("maxTime");
 
 const inputForm = document.getElementById("input");
 const cmdInput = document.getElementById("command");
@@ -53,15 +54,16 @@ function initSelect(selectElem, urlParam, defaultValue) {
     url.searchParams.set(urlParam, selectElem.value);
     document.location.href = url.href;
   });
-  return value;
+  return value == "none" ? null : value;
 }
 
-threadValue = initSelect(threadSelect, "thread", "ui");
-subcommandValue = initSelect(subcommandSelect, "subcommand", "gtp");
-configValue = initSelect(configSelect, "config", "gtp_auto.cfg");
-modelValue = initSelect(modelSelect, "model", "b6c96-s175395328-d26788732");
-boardsizeValue = initSelect(boardsizeSelect, "boardsize", "19");
-backendValue = initSelect(backendSelect, "backend", "auto");
+let threadValue = initSelect(threadSelect, "thread", "ui");
+let subcommandValue = initSelect(subcommandSelect, "subcommand", "gtp");
+let configFileValue = initSelect(configFileSelect, "configFile", "none");
+let modelValue = initSelect(modelSelect, "model", "b6c96-s175395328-d26788732");
+let boardsizeValue = initSelect(boardsizeSelect, "boardsize", "19");
+let backendValue = initSelect(backendSelect, "backend", "auto");
+let maxTimeValue = initSelect(maxTimeSelect, "maxTime", "none");
 
 showboardButton.addEventListener("click", _ => dispatchCommand("showboard"));
 playBlackButton.addEventListener("click", _ => play("black"));
@@ -98,10 +100,14 @@ function onKatagoMessage(msgStr) {
 const katagoParams = {
   subcommand: subcommandValue,
 
-  // configFile: "gtp_auto.cfg",
+  configFile: configFileValue,
   config: {
     tfjsBackend: backendValue,
-    defaultBoardSize: boardsizeValue
+    defaultBoardSize: boardsizeValue,
+
+    // maxTime: 3,
+    maxVisits: 25, // limits size of search tree
+    // maxPlayouts: 300, // limits new searches per move
   },
 
   model: "web_models/" + modelValue + "_" + boardsizeValue,
