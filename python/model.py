@@ -849,8 +849,8 @@ class Model:
     assert(self.version == 8 or self.version == 10)
 
     #Input layer---------------------------------------------------------------------------------
-    bin_inputs = (placeholders["bin_inputs"] if "bin_inputs" in placeholders else
-                  tf.compat.v1.placeholder(tf.float32, [None] + self.bin_input_shape, name="bin_inputs"))
+    spatial_inputs = (placeholders["spatial_inputs"] if "spatial_inputs" in placeholders else
+                  tf.compat.v1.placeholder(tf.float32, [None] + self.bin_input_shape, name="spatial_inputs"))
     global_inputs = (placeholders["global_inputs"] if "global_inputs" in placeholders else
                     tf.compat.v1.placeholder(tf.float32, [None] + self.global_input_shape, name="global_inputs"))
     symmetries = (placeholders["symmetries"] if "symmetries" in placeholders else
@@ -858,17 +858,17 @@ class Model:
     include_history = (tf.constant(placeholders["include_history"]) if "include_history" in placeholders else
                        tf.compat.v1.placeholder(tf.float32, [None] + [5], name="include_history"))
 
-    self.assert_batched_shape("bin_inputs",bin_inputs,self.bin_input_shape)
+    self.assert_batched_shape("spatial_inputs",spatial_inputs,self.bin_input_shape)
     self.assert_batched_shape("global_inputs",global_inputs,self.global_input_shape)
     self.assert_shape("symmetries",symmetries,[3])
     self.assert_batched_shape("include_history",include_history,[5])
 
-    self.bin_inputs = bin_inputs
+    self.spatial_inputs = spatial_inputs
     self.global_inputs = global_inputs
     self.symmetries = symmetries
     self.include_history = include_history
 
-    cur_layer = tf.reshape(bin_inputs, [-1] + self.post_input_shape)
+    cur_layer = tf.reshape(spatial_inputs, [-1] + self.post_input_shape)
 
     input_num_channels = self.post_input_shape[2]
 
@@ -958,7 +958,7 @@ class Model:
     #transformed_global_inputs = global_inputs * tf.pad(include_history, [(0,0),(0,self.num_global_input_features - include_history.shape[1])], constant_values=1.0)
     transformed_global_inputs = global_inputs # assume include_history == [1,1,1,1,1]
 
-    self.transformed_bin_inputs = cur_layer
+    self.transformed_spatial_inputs = cur_layer
     self.transformed_global_inputs = transformed_global_inputs
 
     #Channel counts---------------------------------------------------------------------------------------
@@ -1682,7 +1682,7 @@ class ModelUtils:
     binhwc = tf.cast(tf.transpose(binchw, [0,2,1]),tf.float32)
     binhwc = tf.math.minimum(binhwc,tf.constant(1.0))
 
-    placeholders["bin_inputs"] = binhwc
+    placeholders["spatial_inputs"] = binhwc
 
     placeholders["global_inputs"] = features["ginc"]
     placeholders["symmetries"] = tf.greater(tf.random.uniform([3],minval=0,maxval=2,dtype=tf.int32),tf.zeros([3],dtype=tf.int32))

@@ -53,12 +53,12 @@ if __name__ == "__main__":
         saver.restore(session, model_variables_prefix)
         if disable_symmetries:
             inputs = {
-                "swa_model/bin_inputs": model.bin_inputs,
+                "swa_model/spatial_inputs": model.spatial_inputs,
                 "swa_model/global_inputs": model.global_inputs,
             }
         else:
             inputs = {
-                "swa_model/bin_inputs": model.bin_inputs,
+                "swa_model/spatial_inputs": model.spatial_inputs,
                 "swa_model/global_inputs": model.global_inputs,
                 "symmetries": model.symmetries,
             },

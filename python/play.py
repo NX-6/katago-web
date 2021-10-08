@@ -85,7 +85,7 @@ def fetch_output(session, gs, rules, fetches):
   move_idx = len(gs.moves)
   model.fill_row_features(gs.board,pla,opp,gs.boards,gs.moves,move_idx,rules,bin_input_data,global_input_data,idx=0)
   outputs = session.run(fetches, feed_dict={
-    model.bin_inputs: bin_input_data,
+    model.spatial_inputs: bin_input_data,
     model.global_inputs: global_input_data,
     model.symmetries: [False,False,False],
     model.include_history: [[1.0,1.0,1.0,1.0,1.0]]

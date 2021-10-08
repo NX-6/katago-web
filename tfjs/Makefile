@@ -9,9 +9,9 @@ SAVED_MODEL2_DIR = saved_model2
 SAVED_MODEL2 = $(SAVED_MODEL2_DIR)/saved_model.pb
 
 ifeq "$(DISABLE_SYMMETRIES)" "false"
-	INPUT_NODES = swa_model/bin_inputs,swa_model/global_inputs,swa_model/symmetries
+	INPUT_NODES = swa_model/spatial_inputs,swa_model/global_inputs,swa_model/symmetries
 else
-	INPUT_NODES = swa_model/bin_inputs,swa_model/global_inputs
+	INPUT_NODES = swa_model/spatial_inputs,swa_model/global_inputs
 endif
 OUTPUT_NODES = swa_model/policy_output,swa_model/value_output,swa_model/miscvalues_output,swa_model/ownership_output
 TARGET_DIR = web_model

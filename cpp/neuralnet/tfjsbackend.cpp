@@ -10,13 +10,13 @@
 #include "../logutil.h"
 
 extern "C" {
-  extern int js_initBackend_async(int);
-  extern int js_getBackend();
-  extern int js_downloadMetadata_async(int);
-  extern int js_downloadModel_async(int);
-  extern int js_getModelVersion();
+  extern int  js_initBackend_async(int);
+  extern int  js_getBackend();
+  extern int  js_downloadMetadata_async(int);
+  extern int  js_downloadModel_async(int);
+  extern int  js_getModelVersion();
   extern void js_removeModel();
-  extern int js_predict_async(int, int, int, int, int, int, int, int, int, int);
+  extern int  js_predict_async(int, int, int, int, int, int, int, int, int, int);
 }
 
 using namespace std;
@@ -334,12 +334,12 @@ void NeuralNet::getOutput(
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
   int batchSize = numBatchEltsFilled;
-  int nnXLen = gpuHandle->nnXLen;
-  int nnYLen = gpuHandle->nnYLen;
+  int nnXLen  = gpuHandle->nnXLen;
+  int nnYLen  = gpuHandle->nnYLen;
   int version = gpuHandle->model->modelDesc.version;
 
   int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(version);
-  int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(version);
+  int numGlobalFeatures  = NNModelVersion::getNumGlobalFeatures(version);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
 
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
@@ -349,7 +349,9 @@ void NeuralNet::getOutput(
     const float* rowGlobal = inputBufs[nIdx]->rowGlobal;
     const float* rowSpatial = inputBufs[nIdx]->rowSpatial;
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
-    SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, true, inputBufs[nIdx]->symmetry);
+    SymmetryHelpers::copyInputsWithSymmetry(
+      rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, true, inputBufs[nIdx]->symmetry
+    );
   }
 
   clock_t start = clock();
@@ -370,7 +372,7 @@ void NeuralNet::getOutput(
   if(predictStatus != 1)
     cerr << "predict error " << endl;
 
-  cerr << "predict time(ms): " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC * 1000.0 << endl;
+  // cerr << "predict time(ms): " << static_cast<double>(clock() - start) / CLOCKS_PER_SEC * 1000.0 << endl;
 
   assert(!isnan(inputBuffers->valueResults[0]));
   assert(outputs.size() == batchSize);
