@@ -21,6 +21,7 @@ const genmoveBlackButton = document.getElementById("genmoveBlack");
 const genmoveWhiteButton = document.getElementById("genmoveWhite");
 const analyzeCheckbox = document.getElementById("analyze");
 const loadsgfSelect = document.getElementById("loadsgf");
+const kataAnalyzeButton = document.getElementById("kata-analyze");
 
 var dispatchMessage;
 var loadsgf;
@@ -49,11 +50,11 @@ function play(color) {
 function initSelect(selectElem, urlParam, defaultValue) {
   let value = urlParams.get(urlParam) || defaultValue;
   selectElem.value = value;
-  selectElem.addEventListener("change", ev => {
+  selectElem.onchange = ev => {
     let url = new URL(document.location.href);
     url.searchParams.set(urlParam, selectElem.value);
     document.location.href = url.href;
-  });
+  };
   return value == "none" ? null : value;
 }
 
@@ -65,19 +66,25 @@ let boardsizeValue = initSelect(boardsizeSelect, "boardsize", "19");
 let backendValue = initSelect(backendSelect, "backend", "auto");
 let maxTimeValue = initSelect(maxTimeSelect, "maxTime", "none");
 
-showboardButton.addEventListener("click", _ => dispatchCommand("showboard"));
-playBlackButton.addEventListener("click", _ => play("black"));
-playWhiteButton.addEventListener("click", _ => play("white"));
-genmoveBlackButton.addEventListener("click", _ => genmove("black"));
-genmoveWhiteButton.addEventListener("click", _ => genmove("white"));
-loadsgfSelect.addEventListener("change", _ => loadsgf(loadsgfSelect.value));
+showboardButton.onclick = _ => dispatchCommand("showboard");
+playBlackButton.onclick = _ => play("black");
+playWhiteButton.onclick = _ => play("white");
+genmoveBlackButton.onclick = _ => genmove("black");
+genmoveWhiteButton.onclick = _ => genmove("white");
+loadsgfSelect.onchange = _ => loadsgf(loadsgfSelect.value);
+kataAnalyzeButton.onclick = _ => {
+  switch (kataAnalyzeButton.textContent) {
+    case "start": kataAnalyzeButton.textContent = "stop"; dispatchCommand("kata-analyze black 100"); break;
+    case "stop":  kataAnalyzeButton.textContent = "start"; dispatchCommand("stop"); break;
+  }
+}
 
 
-inputForm.addEventListener("submit", ev => {
+inputForm.onsubmit = ev => {
   ev.preventDefault();
   dispatchCommand(cmdInput.value);
   cmdInput.value = "";
-}, false);
+};
 
 function onKatagoStatus(status) {
   switch (status) {
@@ -133,11 +140,15 @@ if (!crossOriginIsolated) {
 
   dispatchMessage = msg => ww.postMessage({type: "message", text: msg});
   loadsgf = sgfFile => {
-    ww.postMessage({type: "preload", file: sgfFile, url: "sgf_files/" + sgfFile})
-    setTimeout(_ => {
-      dispatchCommand("loadsgf " + sgfFile);
-      dispatchCommand("showboard");
-    }, 500);
+    if (sgfFile == "none")
+      dispatchCommand("clear_board");
+    else {
+      ww.postMessage({type: "preload", file: sgfFile, url: "sgf_files/" + sgfFile})
+      setTimeout(_ => {
+        dispatchCommand("loadsgf " + sgfFile);
+        dispatchCommand("showboard");
+      }, 500);
+    }
   }
 
 } else {
@@ -146,12 +157,15 @@ if (!crossOriginIsolated) {
 
   dispatchMessage = msg => kataGoInstance.postCommand(msg);
   loadsgf = sgfFile => {
-    fetch("sgf_files/" + sgfFile).then(res => res.text())
-    .then(sgfText => {
-      kataGoInstance.FS.writeFile(sgfFile, sgfText);
-      dispatchCommand("loadsgf " + sgfFile);
-      dispatchCommand("showboard");
-    });
+    if (sgfFile == "none")
+      dispatchCommand("clear_board");
+    else
+      fetch("sgf_files/" + sgfFile).then(res => res.text())
+      .then(sgfText => {
+        kataGoInstance.FS.writeFile(sgfFile, sgfText);
+        dispatchCommand("loadsgf " + sgfFile);
+        dispatchCommand("showboard");
+      });
   }
 
   outputTextarea.value += "loading KataGo in UI thread...\n";
